@@ -3,1053 +3,434 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AeroPulse — Gestão Inteligente de Performance Operacional</title>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- Lucide Icons CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Custom Stylesheet -->
+  <title>AeroPulse — Plataforma de Performance Operacional</title>
+  <meta name="description" content="AeroPulse: Gestão inteligente de performance operacional, comportamental e reputacional de equipes de atendimento crítico.">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-  <div class="app-container">
-    
-    <!-- --- SIDEBAR --- -->
-    <aside class="sidebar">
-      <div class="logo-section">
-        <div class="logo-icon">
-          <i data-lucide="plane-takeoff"></i>
-        </div>
-        <div class="logo-text">
-          <h1>AeroPulse</h1>
-          <p>Performance & Risk</p>
-        </div>
-      </div>
-      
-      <!-- Nav Group: Manager (Default) -->
-      <div class="nav-group" id="nav-group-manager">
-        <div class="nav-title">Gestão Operacional</div>
-        <ul class="nav-menu">
-          <li class="nav-item">
-            <a class="nav-link active" data-view="dashboard">
-              <i data-lucide="layout-dashboard"></i>
-              <span>Dashboard</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" data-view="colaboradores">
-              <i data-lucide="users"></i>
-              <span>Colaboradores</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" data-view="riscos">
-              <i data-lucide="shield-alert"></i>
-              <span>Gestão de Risco</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" data-view="agenda">
-              <i data-lucide="calendar"></i>
-              <span>Agenda Follow-up</span>
-            </a>
-          </li>
-        </ul>
-      </div>
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ONBOARDING OVERLAY — shown on first run, manager sets up their profile
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="onboarding-overlay">
+  <div class="onboarding-card">
 
-      <!-- Nav Group: Collaborator -->
-      <div class="nav-group" id="nav-group-collaborator" style="display: none;">
-        <div class="nav-title">Portal Colaborador</div>
-        <ul class="nav-menu">
-          <li class="nav-item">
-            <a class="nav-link" data-view="colaborador-portal">
-              <i data-lucide="user"></i>
-              <span>Minha Performance</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" data-view="colaborador-agenda">
-              <i data-lucide="calendar-days"></i>
-              <span>Minha Agenda</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Sidebar Footer -->
-      <div class="sidebar-footer">
-        <div class="user-profile-badge">
-          <img src="https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?auto=format&fit=crop&q=80&w=150" alt="Gestor Avatar" class="user-avatar" id="sidebar-user-img">
-          <div class="user-info">
-            <span class="user-name" id="sidebar-user-name">Cap. Roberto Melo</span>
-            <span class="user-role" id="sidebar-user-role">Gestor de Operações</span>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- --- MAIN CONTENT WRAPPER --- -->
-    <main class="main-wrapper">
-      
-      <!-- --- HEADER --- -->
-      <header>
-        <div class="header-title-area">
-          <h2 id="current-view-title">Dashboard Operacional</h2>
-        </div>
-        
-        <div class="header-actions">
-          <button class="btn btn-secondary btn-sm" id="btn-reset-db" title="Restaurar dados padrões de demonstração">
-            <i data-lucide="rotate-ccw"></i>
-            <span>Resetar DB Demo</span>
-          </button>
-          
-          <!-- Role Switcher -->
-          <div class="role-toggle-container">
-            <button class="role-btn active" id="toggle-manager">Gestor</button>
-            <button class="role-btn" id="toggle-collab">Colaborador</button>
-          </div>
-        </div>
-      </header>
-
-      <!-- --- CONTENT CONTAINER --- -->
-      <div class="content-container">
-
-        <!-- ==================== VIEW: DASHBOARD ==================== -->
-        <section id="view-dashboard" class="view-section active">
-          
-          <!-- Top KPI Cards -->
-          <div class="dashboard-grid">
-            
-            <div class="kpi-card performance">
-              <div class="kpi-info">
-                <h4>Média de Performance</h4>
-                <div class="kpi-value" id="kpi-performance">8.7</div>
-                <div class="kpi-trend positive" id="trend-performance">
-                  <i data-lucide="trending-up"></i>
-                  <span>+0.2 este mês</span>
-                </div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="activity"></i>
-              </div>
-            </div>
-
-            <div class="kpi-card engajamento">
-              <div class="kpi-info">
-                <h4>Engajamento (SLA)</h4>
-                <div class="kpi-value" id="kpi-engajamento">88%</div>
-                <div class="kpi-trend positive" id="trend-engajamento">
-                  <i data-lucide="check-circle-2"></i>
-                  <span>Alto engajamento</span>
-                </div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="smile"></i>
-              </div>
-            </div>
-
-            <div class="kpi-card evolucao">
-              <div class="kpi-info">
-                <h4>Evolução de Scores</h4>
-                <div class="kpi-value" id="kpi-evolucao">+4.3%</div>
-                <div class="kpi-trend positive" id="trend-evolucao">
-                  <i data-lucide="arrow-up-right"></i>
-                  <span>vs. mês anterior</span>
-                </div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="line-chart"></i>
-              </div>
-            </div>
-
-            <div class="kpi-card risco" id="kpi-risco-card">
-              <div class="kpi-info">
-                <h4>Risco Operacional</h4>
-                <div class="kpi-value" id="kpi-risco">Médio (45)</div>
-                <div class="kpi-trend negative" id="trend-risco">
-                  <i data-lucide="alert-triangle"></i>
-                  <span>2 em risco crítico</span>
-                </div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="shield-alert"></i>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Charts and Lists Grid -->
-          <div class="layout-grid-2x1">
-            
-            <!-- Left Chart -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="bar-chart-3"></i>Distribuição Comportamental DISC da Equipe</h3>
-              </div>
-              <div style="height: 300px; position: relative;">
-                <canvas id="chart-disc-distribution"></canvas>
-              </div>
-            </div>
-
-            <!-- Right Risk Alert Engine -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="alert-octagon"></i>Alertas de Risco</h3>
-                <span class="badge badge-danger" id="risk-alert-count">2 Alertas</span>
-              </div>
-              <div id="dashboard-risk-list">
-                <!-- Seeded risk updates dynamically -->
-              </div>
-            </div>
-
-          </div>
-
-          <div class="layout-grid-1x1">
-            <!-- Left: Upcoming sessions -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="calendar"></i>Próximos Follow-ups</h3>
-                <button class="btn btn-secondary btn-sm" id="btn-schedule-shortcut">
-                  <i data-lucide="plus"></i>Agendar
-                </button>
-              </div>
-              <div class="agenda-list" id="dashboard-agenda-list">
-                <!-- Seeded agenda items -->
-              </div>
-            </div>
-
-            <!-- Right: Recent Feedbacks -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="message-square"></i>Feedbacks Recentes</h3>
-                <button class="btn btn-primary btn-sm" id="btn-feedback-shortcut">
-                  <i data-lucide="message-square-plus"></i>Novo Feedback
-                </button>
-              </div>
-              <div class="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Colaborador</th>
-                      <th>Data</th>
-                      <th>Média</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashboard-recent-feedbacks">
-                    <!-- Seeded feedbacks -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
-
-        </section>
-
-        <!-- ==================== VIEW: COLABORADORES ==================== -->
-        <section id="view-colaboradores" class="view-section">
-          
-          <div class="section-card">
-            <div class="card-header">
-              <h3><i data-lucide="users"></i>Gestão da Equipe de Operações Críticas</h3>
-              <button class="btn btn-primary" id="btn-add-collab">
-                <i data-lucide="user-plus"></i>Adicionar Colaborador
-              </button>
-            </div>
-            
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Colaborador</th>
-                    <th>Cargo</th>
-                    <th>Perfil DISC</th>
-                    <th>Último Feedback</th>
-                    <th>Score Geral</th>
-                    <th>Risco</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="team-list-tbody">
-                  <!-- Loaded dynamically -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Collaborator Profile Detail Section -->
-          <div class="collab-detail-container" id="collab-detail-panel" style="display: none; margin-top: 32px;">
-            <div class="card-header">
-              <h3><i data-lucide="user-check"></i>Ficha Detalhada do Colaborador</h3>
-              <button class="btn btn-secondary btn-sm" id="btn-close-detail">
-                <i data-lucide="x"></i>Fechar Ficha
-              </button>
-            </div>
-
-            <div class="collab-detail-grid">
-              
-              <!-- Left Sidebar: Basic Info -->
-              <div class="profile-sidebar">
-                <img src="" alt="Avatar" class="profile-large-img" id="detail-avatar">
-                <h3 id="detail-name">Alice Santos</h3>
-                <p class="cargo" id="detail-cargo">Coordenadora de Embarque</p>
-                
-                <span class="badge badge-success" id="detail-status-badge">Ativo</span>
-                
-                <div class="profile-stat-box">
-                  <div class="profile-stat">
-                    <span>Performance</span>
-                    <span id="detail-stat-perf">8.5</span>
-                  </div>
-                  <div class="profile-stat">
-                    <span>Conformidade</span>
-                    <span id="detail-stat-compliance">9.0</span>
-                  </div>
-                </div>
-
-                <div class="profile-disc-indicator">
-                  <span>Perfil Comportamental DISC</span>
-                  <span id="detail-disc-profile">Não Mapeado</span>
-                  <button class="btn btn-outline-primary btn-sm" style="margin-top: 8px;" id="btn-detail-take-disc">
-                    <i data-lucide="brain"></i>Aplicar DISC
-                  </button>
-                </div>
-
-                <div class="qr-container" style="margin-top: 24px; width: 100%;">
-                  <div class="qr-canvas-holder">
-                    <img src="" id="detail-qr-img" style="width:120px; height:120px;" alt="QR Code Autoavaliação">
-                  </div>
-                  <span style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">QR Code Autoavaliação</span>
-                  <a class="qr-link-simulate" id="btn-simulate-qr">Simular Escaneamento</a>
-                </div>
-              </div>
-
-              <!-- Right Area: Dashboards and History -->
-              <div class="profile-main-area">
-                
-                <!-- DISC Scores -->
-                <div class="section-card">
-                  <div class="card-header">
-                    <h3><i data-lucide="bar-chart-4"></i>Indicadores DISC</h3>
-                  </div>
-                  <div class="disc-pill-row" id="detail-disc-scores-row">
-                    <!-- Loaded dynamically -->
-                  </div>
-                  <p style="margin-top: 12px; font-size: 13px; color: var(--text-secondary);" id="detail-disc-desc">
-                    Mapeie o perfil comportamental do colaborador para entender seus pontos fortes, fraquezas operacionais e orientações de comunicação adaptada.
-                  </p>
-                </div>
-
-                <!-- Action Plans -->
-                <div class="section-card">
-                  <div class="card-header">
-                    <h3><i data-lucide="list-todo"></i>Plano de Desenvolvimento e Ação</h3>
-                    <button class="btn btn-secondary btn-sm" id="btn-create-action-plan">
-                      <i data-lucide="plus"></i>Criar Plano
-                    </button>
-                  </div>
-                  <div class="table-container">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Plano de Ação</th>
-                          <th>Metas</th>
-                          <th>Prazo</th>
-                          <th>Status</th>
-                          <th>Ação</th>
-                        </tr>
-                      </thead>
-                      <tbody id="detail-action-plans-tbody">
-                        <!-- Loaded dynamically -->
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <!-- Feedbacks History -->
-                <div class="section-card">
-                  <div class="card-header">
-                    <h3><i data-lucide="history"></i>Histórico de Feedbacks</h3>
-                    <button class="btn btn-primary btn-sm" id="btn-detail-add-feedback">
-                      <i data-lucide="message-square-plus"></i>Lançar Feedback
-                    </button>
-                  </div>
-                  
-                  <div class="table-container">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Data</th>
-                          <th>Nota Perf.</th>
-                          <th>Nota Comp.</th>
-                          <th>Nota Compl.</th>
-                          <th>Observações</th>
-                          <th>Tipo</th>
-                        </tr>
-                      </thead>
-                      <tbody id="detail-feedbacks-history-tbody">
-                        <!-- Loaded dynamically -->
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <!-- Performance Chart -->
-                <div class="section-card">
-                  <div class="card-header">
-                    <h3><i data-lucide="line-chart"></i>Evolução Histórica</h3>
-                  </div>
-                  <div style="height: 250px; position: relative;">
-                    <canvas id="chart-collab-evolution"></canvas>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-
-        </section>
-
-        <!-- ==================== VIEW: RISCOS ==================== -->
-        <section id="view-riscos" class="view-section">
-          
-          <div class="section-card" style="margin-bottom: 24px;">
-            <div class="card-header">
-              <h3><i data-lucide="activity"></i>Motor de Risco Operacional & Reputacional</h3>
-              <span class="badge badge-danger">Tempo Real</span>
-            </div>
-            <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
-              O motor de risco analisa desvios de compliance, queda acentuada em notas de feedback, baixa motivação em autoavaliações e planos de desenvolvimento atrasados. No setor de aviação, a identificação precoce de desgaste humano previne atritos reputacionais e incidentes de conformidade operacional.
-            </p>
-          </div>
-
-          <div class="layout-grid-2x1">
-            <!-- Left: Detailed risk status by collaborator -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="shield-alert"></i>Análise Individual de Risco</h3>
-              </div>
-              <div class="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Colaborador</th>
-                      <th>Risco</th>
-                      <th>Score</th>
-                      <th>Principais Fatores Gatilho</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody id="risk-analysis-tbody">
-                    <!-- Dynamic risk rows -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Right: Risk mitigation recommendation card -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="wrench"></i>Recomendações e Mitigação</h3>
-              </div>
-              <div id="risk-mitigation-recommendations">
-                <p style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 32px 0;">
-                  Selecione "Ver Mitigação" ao lado de um colaborador para visualizar o plano recomendado pelo AeroPulse.
-                </p>
-              </div>
-            </div>
-
-          </div>
-
-        </section>
-
-        <!-- ==================== VIEW: AGENDA ==================== -->
-        <section id="view-agenda" class="view-section">
-          
-          <div class="section-card">
-            <div class="card-header">
-              <h3><i data-lucide="calendar"></i>Cronograma de Sessões de Acompanhamento (Follow-up)</h3>
-              <button class="btn btn-primary" id="btn-schedule-session">
-                <i data-lucide="calendar-plus"></i>Agendar Sessão
-              </button>
-            </div>
-            
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Colaborador</th>
-                    <th>Data</th>
-                    <th>Horário</th>
-                    <th>Tipo de Sessão</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="agenda-list-tbody">
-                  <!-- Dyn loading -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </section>
-
-        <!-- ==================== VIEW: PORTAL COLABORADOR ==================== -->
-        <section id="view-colaborador-portal" class="view-section">
-          
-          <div class="collab-portal-header">
-            <div class="collab-portal-profile">
-              <img src="" alt="Avatar" class="collab-portal-avatar" id="portal-user-avatar">
-              <div class="collab-portal-meta">
-                <h2 id="portal-user-name">Alice Santos</h2>
-                <p id="portal-user-cargo">Coordenadora de Embarque</p>
-              </div>
-            </div>
-            <div class="portal-disc-badge-container">
-              <span class="badge badge-info" id="portal-disc-badge" style="font-size: 13px; padding: 8px 16px;">Perfil: Analista</span>
-            </div>
-          </div>
-
-          <div class="dashboard-grid">
-            
-            <div class="kpi-card performance">
-              <div class="kpi-info">
-                <h4>Minha Média Recente</h4>
-                <div class="kpi-value" id="portal-kpi-perf">8.2</div>
-                <div class="kpi-trend" id="portal-kpi-perf-trend">Operação padrão</div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="award"></i>
-              </div>
-            </div>
-
-            <div class="kpi-card engajamento">
-              <div class="kpi-info">
-                <h4>Minha Motivação</h4>
-                <div class="kpi-value" id="portal-kpi-motivacao">8/10</div>
-                <div class="kpi-trend" id="portal-kpi-motivacao-trend">Reportado em 12/06</div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="smile"></i>
-              </div>
-            </div>
-
-            <div class="kpi-card evolucao">
-              <div class="kpi-info">
-                <h4>Planos Ativos</h4>
-                <div class="kpi-value" id="portal-kpi-planos">1</div>
-                <div class="kpi-trend" id="portal-kpi-planos-trend">Em desenvolvimento</div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="list-todo"></i>
-              </div>
-            </div>
-
-            <div class="kpi-card risco-baixo" id="portal-kpi-confor-card">
-              <div class="kpi-info">
-                <h4>Nota Conformidade</h4>
-                <div class="kpi-value" id="portal-kpi-conformidade">9.5</div>
-                <div class="kpi-trend positive">
-                  <i data-lucide="shield-check"></i>
-                  <span>Operação Segura</span>
-                </div>
-              </div>
-              <div class="kpi-icon-container">
-                <i data-lucide="shield-check"></i>
-              </div>
-            </div>
-
-          </div>
-
-          <div class="layout-grid-2x1">
-            
-            <!-- Left: Action Plans -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="list-todo"></i>Meu Plano de Ação e Crescimento</h3>
-              </div>
-              <div class="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Plano de Ação</th>
-                      <th>Metas Estabelecidas</th>
-                      <th>Prazo Limite</th>
-                      <th>Status</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody id="portal-action-plans-tbody">
-                    <!-- Dynamic -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Right: DISC Test Panel -->
-            <div class="section-card" id="portal-disc-test-card">
-              <div class="card-header">
-                <h3><i data-lucide="brain"></i>Auto-Mapeamento DISC</h3>
-              </div>
-              <div id="portal-disc-status-content" style="text-align: center; padding: 12px 0;">
-                <!-- Loaded dynamically -->
-              </div>
-            </div>
-
-          </div>
-
-          <div class="layout-grid-1x1">
-            
-            <!-- Left: Feedbacks history -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="history"></i>Histórico de Feedbacks Recebidos</h3>
-              </div>
-              <div class="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Nota Perf.</th>
-                      <th>Nota Comp.</th>
-                      <th>Nota Compl.</th>
-                      <th>Comentários do Gestor</th>
-                    </tr>
-                  </thead>
-                  <tbody id="portal-feedbacks-tbody">
-                    <!-- Loaded dynamically -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Right: Performance charts -->
-            <div class="section-card">
-              <div class="card-header">
-                <h3><i data-lucide="line-chart"></i>Evolução de Scores</h3>
-              </div>
-              <div style="height: 250px; position: relative;">
-                <canvas id="chart-portal-evolution"></canvas>
-              </div>
-            </div>
-
-          </div>
-
-        </section>
-
-        <!-- ==================== VIEW: COLABORADOR AGENDA ==================== -->
-        <section id="view-colaborador-agenda" class="view-section">
-          
-          <div class="section-card">
-            <div class="card-header">
-              <h3><i data-lucide="calendar"></i>Minhas Sessões de Follow-up com Gestor</h3>
-            </div>
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Horário</th>
-                    <th>Tipo de Acompanhamento</th>
-                    <th>Gestor</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody id="portal-agenda-tbody">
-                  <!-- Loaded dynamically -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-        </section>
-
-      </div>
-    </main>
-
-  </div>
-
-  <!-- ==================== MODALS ==================== -->
-
-  <!-- MODAL: ADD COLABORADOR -->
-  <div class="modal-overlay" id="modal-add-collab">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Adicionar Novo Colaborador</h3>
-        <button class="modal-close"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-add-collab">
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label" for="collab-nome">Nome Completo</label>
-            <input type="text" id="collab-nome" class="form-control" placeholder="Ex: João da Silva" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="collab-email">E-mail Corporativo</label>
-            <input type="email" id="collab-email" class="form-control" placeholder="Ex: joao.silva@aeropulse.com.br" required>
-          </div>
-          <div class="form-group row-2">
-            <div>
-              <label class="form-label" for="collab-cargo">Cargo Operacional</label>
-              <select id="collab-cargo" class="form-control" required>
-                <option value="Coordenadora de Embarque (Gate)">Coordenador de Embarque (Gate)</option>
-                <option value="Comissário de Bordo Premium">Comissário de Bordo Premium</option>
-                <option value="Supervisor de Rampa e Bagagens">Supervisor de Rampa e Bagagens</option>
-                <option value="Agente de Atendimento VIP Lounge">Agente de Atendimento VIP</option>
-                <option value="Despachante Técnico de Voo (DOV)">Despachante Técnico (DOV)</option>
-                <option value="Operador de SAC Premium">Operador de SAC Premium</option>
-              </select>
-            </div>
-            <div>
-              <label class="form-label" for="collab-foto">URL da Foto (Opcional)</label>
-              <input type="url" id="collab-foto" class="form-control" placeholder="Ex: https://images.unsplash.com/...">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary modal-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Cadastrar</button>
-        </div>
-      </form>
+    <!-- Logo -->
+    <div class="onboarding-logo">
+      <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;color:#fff;box-shadow:0 0 20px rgba(124,58,237,0.4);">✈</div>
+      <span>AeroPulse</span>
     </div>
-  </div>
 
-  <!-- MODAL: ADD FEEDBACK -->
-  <div class="modal-overlay" id="modal-add-feedback">
-    <div class="modal-box modal-large">
-      <div class="modal-header">
-        <h3>Registrar Feedback Estruturado</h3>
-        <button class="modal-close"><i data-lucide="x"></i></button>
+    <!-- Step 1: Basic Info -->
+    <div class="onboarding-step active" id="ob-step-1">
+      <h2>👋 Bem-vindo(a) ao AeroPulse!</h2>
+      <p>Vamos configurar o seu perfil de gestor para começar. Essas informações aparecerão no painel e serão usadas para personalizar a plataforma para a sua equipe.</p>
+      <div class="onboarding-fields">
+        <div class="field-group">
+          <label>Seu nome completo</label>
+          <input type="text" id="ob-nome" placeholder="Ex: João Silva" autocomplete="off">
+        </div>
+        <div class="field-group">
+          <label>Cargo / Função</label>
+          <input type="text" id="ob-cargo" placeholder="Ex: Gerente de Operações" autocomplete="off">
+        </div>
+        <div class="field-group">
+          <label>Empresa / Organização</label>
+          <input type="text" id="ob-empresa" placeholder="Ex: Azul Linhas Aéreas" autocomplete="off">
+        </div>
+        <div class="field-group">
+          <label>E-mail de acesso</label>
+          <input type="email" id="ob-email" placeholder="gestor@empresa.com.br" autocomplete="off">
+        </div>
       </div>
-      <form id="form-add-feedback">
-        <input type="hidden" id="feedback-collab-id">
-        <div class="modal-body" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px;">
-          
-          <!-- Left: Standard Form -->
-          <div>
-            <h4 style="font-family: var(--font-title); margin-bottom: 16px; color: var(--primary);">Notas do Feedback</h4>
-            
-            <div class="form-group row-2" style="margin-bottom: 12px;">
+      <button class="btn btn-primary btn-full" onclick="obNextStep1()">Continuar →</button>
+    </div>
+
+    <!-- Step 2: DISC questionnaire intro -->
+    <div class="onboarding-step" id="ob-step-2">
+      <h2>🧠 Mapeamento do seu Perfil Comportamental</h2>
+      <p>Agora você vai responder <strong>20 perguntas</strong> para identificarmos o seu perfil DISC. Isso nos ajuda a personalizar como a plataforma apresenta insights sobre sua equipe e a calibrar feedbacks de acordo com o seu estilo de liderança.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px;">
+        <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px;">
+          <div style="font-size:1.4rem;margin-bottom:6px;">🔴</div>
+          <div style="font-weight:700;font-size:0.9rem;">Dominância</div>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-top:4px;">Ação, liderança e resultados</div>
+        </div>
+        <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:14px;">
+          <div style="font-size:1.4rem;margin-bottom:6px;">🟡</div>
+          <div style="font-weight:700;font-size:0.9rem;">Influência</div>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-top:4px;">Entusiasmo e conexão</div>
+        </div>
+        <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:14px;">
+          <div style="font-size:1.4rem;margin-bottom:6px;">🟢</div>
+          <div style="font-weight:700;font-size:0.9rem;">Estabilidade</div>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-top:4px;">Empatia e lealdade</div>
+        </div>
+        <div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:14px;">
+          <div style="font-size:1.4rem;margin-bottom:6px;">🔵</div>
+          <div style="font-weight:700;font-size:0.9rem;">Conformidade</div>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-top:4px;">Qualidade, análise e precisão</div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="obStartDisc()">Iniciar Mapeamento →</button>
+    </div>
+
+    <!-- Step 3: DISC Questions (dynamic) -->
+    <div class="onboarding-step" id="ob-step-3">
+      <div class="disc-question-counter" id="ob-disc-counter">Pergunta 1 de 20</div>
+      <div class="disc-progress-bar">
+        <div class="disc-progress-fill" id="ob-disc-progress" style="width:5%"></div>
+      </div>
+      <div class="disc-question-text" id="ob-disc-question"></div>
+      <div class="disc-options" id="ob-disc-options"></div>
+      <div style="display:flex;gap:10px;margin-top:24px;justify-content:flex-end;">
+        <button class="btn btn-secondary btn-sm" id="ob-disc-prev" onclick="obDiscPrev()" disabled>← Anterior</button>
+        <button class="btn btn-primary btn-sm" id="ob-disc-next" onclick="obDiscNext()" disabled>Próxima →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: DISC Result -->
+    <div class="onboarding-step" id="ob-step-4">
+      <h2>🎉 Seu Perfil Comportamental</h2>
+      <p>Baseado nas suas respostas, identificamos o seu perfil dominante:</p>
+      <div class="disc-result-card" id="ob-disc-result"></div>
+      <button class="btn btn-primary btn-full" onclick="obFinish()">Acessar a Plataforma →</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MAIN APP
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">✈</div>
+      <span class="logo-text">AeroPulse</span>
+    </div>
+
+    <div class="sidebar-profile" id="sidebar-profile">
+      <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=80" class="avatar" id="sidebar-avatar" alt="Gestor">
+      <div class="profile-info">
+        <div class="profile-name" id="sidebar-name">—</div>
+        <span class="profile-disc-badge" id="sidebar-disc-badge">DISC —</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Gestão</div>
+      <div class="nav-item active" data-view="dashboard" onclick="navigateTo('dashboard', this)">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-view="colaboradores" onclick="navigateTo('colaboradores', this)">
+        <span class="icon">👥</span> Colaboradores
+      </div>
+      <div class="nav-item" data-view="feedbacks" onclick="navigateTo('feedbacks', this)">
+        <span class="icon">💬</span> Feedbacks
+      </div>
+
+      <div class="nav-section-label">Desempenho</div>
+      <div class="nav-item" data-view="risco" onclick="navigateTo('risco', this)">
+        <span class="icon">⚠️</span> Risco Operacional
+      </div>
+      <div class="nav-item" data-view="planos" onclick="navigateTo('planos', this)">
+        <span class="icon">📋</span> Planos de Ação
+      </div>
+      <div class="nav-item" data-view="agenda" onclick="navigateTo('agenda', this)">
+        <span class="icon">📅</span> Agenda
+      </div>
+
+      <div class="nav-section-label">Perfis</div>
+      <div class="nav-item" data-view="meu-perfil" onclick="navigateTo('meu-perfil', this)">
+        <span class="icon">🧑‍💼</span> Meu Perfil
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">AeroPulse v1.0 · Todos os dados são locais</div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main id="main-content">
+    <header class="top-bar">
+      <div>
+        <div class="top-bar-title" id="top-bar-title">Dashboard</div>
+        <div class="top-bar-subtitle" id="top-bar-subtitle">Visão geral da operação</div>
+      </div>
+      <div class="top-bar-actions">
+        <button class="btn btn-primary btn-sm" id="top-bar-action-btn" onclick="openAddColaborador()">+ Adicionar Colaborador</button>
+      </div>
+    </header>
+
+    <!-- ── DASHBOARD ──────────────────────────────────────────────────────── -->
+    <section class="view active" id="view-dashboard">
+      <div id="dash-empty" class="empty-state" style="display:none;min-height:60vh;">
+        <div class="empty-icon">✈️</div>
+        <h3>Bem-vindo ao AeroPulse!</h3>
+        <p>Comece adicionando colaboradores à sua equipe para visualizar os indicadores de performance aqui.</p>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="openAddColaborador()">+ Adicionar primeiro colaborador</button>
+      </div>
+      <div id="dash-content">
+        <div class="kpi-grid" id="dash-kpis"></div>
+        <div class="grid-2" style="margin-bottom:20px;">
+          <div class="card">
+            <div class="card-header">
               <div>
-                <label class="form-label" for="feed-nota-perf">Performance (0-10)</label>
-                <input type="number" id="feed-nota-perf" class="form-control" min="0" max="10" step="0.1" value="8.0" required>
+                <div class="card-title">Distribuição DISC</div>
+                <div class="card-subtitle">Perfis comportamentais da equipe</div>
               </div>
+            </div>
+            <div id="dash-disc-chart"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
               <div>
-                <label class="form-label" for="feed-nota-comp">Comportamento (0-10)</label>
-                <input type="number" id="feed-nota-comp" class="form-control" min="0" max="10" step="0.1" value="8.0" required>
+                <div class="card-title">Nível de Risco</div>
+                <div class="card-subtitle">Risco geral por colaborador</div>
               </div>
             </div>
-
-            <div class="form-group" style="margin-bottom: 16px;">
-              <label class="form-label" for="feed-nota-compliance">Compliance & Segurança (0-10)</label>
-              <input type="number" id="feed-nota-compliance" class="form-control" min="0" max="10" step="0.1" value="9.0" required>
-              <small style="color: var(--text-muted); font-size: 11px;">Crucial para a segurança operacional da aviação.</small>
-            </div>
-
-            <h4 style="font-family: var(--font-title); margin-bottom: 12px; font-size: 13px; text-transform: uppercase; color: var(--text-muted);">Pilares de Evolução</h4>
-            <div class="form-group form-rating-row">
-              <div class="rating-input-box">
-                <span>Comunicação</span>
-                <input type="number" id="feed-p-comunicacao" class="form-control" min="1" max="10" value="8" required>
-              </div>
-              <div class="rating-input-box">
-                <span>Conformidade</span>
-                <input type="number" id="feed-p-conformidade" class="form-control" min="1" max="10" value="9" required>
-              </div>
-              <div class="rating-input-box">
-                <span>Resolução</span>
-                <input type="number" id="feed-p-resolucao" class="form-control" min="1" max="10" value="8" required>
-              </div>
-              <div class="rating-input-box">
-                <span>Empatia</span>
-                <input type="number" id="feed-p-empatia" class="form-control" min="1" max="10" value="8" required>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="feed-obs">Observações e Recomendações</label>
-              <textarea id="feed-obs" class="form-control" placeholder="Descreva os pontos fortes e de desenvolvimento discutidos no feedback..." required></textarea>
-            </div>
+            <div id="dash-risk-list"></div>
           </div>
-
-          <!-- Right: AI Copilot Assistant -->
-          <div>
-            <div class="ai-helper-box">
-              <div class="ai-helper-header">
-                <span class="ai-helper-title">
-                  <i data-lucide="sparkles"></i>
-                  <span>AeroPulse AI Assist</span>
-                </span>
-                <span class="badge badge-info" id="ai-collab-disc-label" style="font-size: 9px;">Mapeando...</span>
-              </div>
-              <div class="ai-helper-body">
-                
-                <div class="form-group" style="margin-bottom: 12px;">
-                  <label class="form-label" style="font-size: 11px;">Foco do Feedback</label>
-                  <select id="ai-feed-area" class="form-control" style="padding: 6px; font-size: 12px;">
-                    <option value="performance">Geral (Performance & SLA)</option>
-                    <option value="seguranca">Segurança & Conformidade Operacional</option>
-                    <option value="comportamento">Trabalho em Equipe & Comportamento</option>
-                  </select>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 12px;">
-                  <label class="form-label" style="font-size: 11px;">Tom da Abordagem</label>
-                  <select id="ai-feed-tom" class="form-control" style="padding: 6px; font-size: 12px;">
-                    <option value="positivo">Positivo / Reconhecimento</option>
-                    <option value="construtivo">Construtivo / Alinhamento</option>
-                  </select>
-                </div>
-
-                <button type="button" class="btn btn-outline-primary btn-sm" id="btn-generate-ai-text" style="width: 100%; margin-bottom: 12px;">
-                  <i data-lucide="cpu"></i>Gerar Abordagem Ideal (DISC)
-                </button>
-
-                <div id="ai-text-result-container" style="display: none;">
-                  <div class="ai-strategic-approach" id="ai-strategic-approach"></div>
-                  <div class="ai-text-suggestion" id="ai-text-suggestion"></div>
-                  <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">DICAS DE COMUNICAÇÃO:</div>
-                  <ul class="ai-dicas-list" id="ai-dicas-list"></ul>
-                  <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-ai-text" style="width: 100%; margin-top: 8px;">
-                    <i data-lucide="copy"></i>Usar Texto nas Observações
-                  </button>
-                </div>
-
-              </div>
-            </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Últimos Feedbacks Registrados</div>
           </div>
+          <div id="dash-recent-feedbacks"></div>
+        </div>
+      </div>
+    </section>
 
-        </div>
-        <div class="modal-footer">
-          <span style="margin-right: auto; font-size: 11px; color: var(--text-muted);" id="ai-status-footnote">*A abordagem é adaptada ao perfil DISC do colaborador.</span>
-          <button type="button" class="btn btn-secondary modal-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-feedback">Salvar Feedback</button>
-        </div>
-      </form>
+    <!-- ── COLABORADORES ──────────────────────────────────────────────────── -->
+    <section class="view" id="view-colaboradores">
+      <div id="colab-empty" class="empty-state" style="display:none;">
+        <div class="empty-icon">👥</div>
+        <h3>Nenhum colaborador cadastrado</h3>
+        <p>Adicione os membros da sua equipe para começar a monitorar a performance deles.</p>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="openAddColaborador()">+ Adicionar colaborador</button>
+      </div>
+      <div class="colab-cards" id="colab-cards-grid"></div>
+    </section>
+
+    <!-- ── PERFIL DO COLABORADOR ──────────────────────────────────────────── -->
+    <section class="view" id="view-perfil-colab">
+      <button class="btn btn-secondary btn-sm" style="margin-bottom:20px;" onclick="navigateTo('colaboradores', null)">← Voltar</button>
+      <div id="perfil-colab-content"></div>
+    </section>
+
+    <!-- ── FEEDBACKS ──────────────────────────────────────────────────────── -->
+    <section class="view" id="view-feedbacks">
+      <div id="feedbacks-empty" class="empty-state" style="display:none;">
+        <div class="empty-icon">💬</div>
+        <h3>Nenhum feedback registrado</h3>
+        <p>Comece adicionando colaboradores e registrando feedbacks de performance.</p>
+      </div>
+      <div class="timeline" id="feedbacks-list"></div>
+    </section>
+
+    <!-- ── RISCO OPERACIONAL ───────────────────────────────────────────────── -->
+    <section class="view" id="view-risco">
+      <div id="risco-empty" class="empty-state" style="display:none;">
+        <div class="empty-icon">⚠️</div>
+        <h3>Sem dados de risco</h3>
+        <p>Adicione colaboradores e registre feedbacks para gerar análises de risco.</p>
+      </div>
+      <div id="risco-content"></div>
+    </section>
+
+    <!-- ── PLANOS DE AÇÃO ─────────────────────────────────────────────────── -->
+    <section class="view" id="view-planos">
+      <div id="planos-empty" class="empty-state" style="display:none;">
+        <div class="empty-icon">📋</div>
+        <h3>Nenhum plano de ação criado</h3>
+        <p>Planos de ação são criados dentro do perfil de cada colaborador.</p>
+      </div>
+      <div id="planos-list"></div>
+    </section>
+
+    <!-- ── AGENDA ─────────────────────────────────────────────────────────── -->
+    <section class="view" id="view-agenda">
+      <div id="agenda-empty" class="empty-state" style="display:none;">
+        <div class="empty-icon">📅</div>
+        <h3>Nenhuma sessão agendada</h3>
+        <p>Agende sessões de acompanhamento a partir do perfil de cada colaborador.</p>
+      </div>
+      <div id="agenda-list"></div>
+    </section>
+
+    <!-- ── MEU PERFIL (GESTOR) ────────────────────────────────────────────── -->
+    <section class="view" id="view-meu-perfil">
+      <div id="meu-perfil-content"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODALS
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Add Collaborator -->
+<div class="modal-backdrop hidden" id="modal-add-colab">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Adicionar Colaborador</span>
+      <button class="modal-close" onclick="closeModal('modal-add-colab')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nome Completo</label>
+      <input class="form-control" id="form-colab-nome" placeholder="Nome do colaborador">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cargo / Função</label>
+      <input class="form-control" id="form-colab-cargo" placeholder="Ex: Atendente de Embarque">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Setor</label>
+      <input class="form-control" id="form-colab-setor" placeholder="Ex: Check-in, Embarque, SAC...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">E-mail</label>
+      <input class="form-control" id="form-colab-email" type="email" placeholder="colaborador@empresa.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Telefone</label>
+      <input class="form-control" id="form-colab-telefone" placeholder="(11) 99999-9999">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-colab')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitAddColaborador()">Adicionar Colaborador</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: INTERACTIVE DISC ASSESSMENT -->
-  <div class="modal-overlay" id="modal-disc-test">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Mapeamento de Perfil DISC</h3>
-        <button class="modal-close"><i data-lucide="x"></i></button>
+<!-- Add Feedback -->
+<div class="modal-backdrop hidden" id="modal-add-feedback">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Registrar Feedback</span>
+      <button class="modal-close" onclick="closeModal('modal-add-feedback')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Colaborador</label>
+      <select class="form-control" id="form-fb-colab"></select>
+    </div>
+    <div class="grid-2" style="gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Performance (1-10)</label>
+        <input class="form-control" id="form-fb-perf" type="number" min="1" max="10" placeholder="8">
       </div>
-      <div class="modal-body">
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
-          Selecione a opção que melhor descreve o comportamento do colaborador <strong><span id="disc-collab-name-modal">Alice Santos</span></strong> em ambiente de trabalho operacional crítico.
-        </p>
-        
-        <div class="disc-survey-container" id="disc-questions-container">
-          <!-- Dynamic survey questions -->
-        </div>
-      </div>
-      <div class="modal-footer">
-        <div style="margin-right: auto; font-size: 12px; font-weight: 600;" id="disc-survey-progress">Questão 1 de 10</div>
-        <button type="button" class="btn btn-secondary" id="btn-disc-prev" style="display:none;">Anterior</button>
-        <button type="button" class="btn btn-primary" id="btn-disc-next">Próximo</button>
-        <button type="button" class="btn btn-success" id="btn-disc-finish" style="display:none;">Finalizar Mapeamento</button>
+      <div class="form-group">
+        <label class="form-label">Comportamento (1-10)</label>
+        <input class="form-control" id="form-fb-comp" type="number" min="1" max="10" placeholder="8">
       </div>
     </div>
-  </div>
-
-  <!-- MODAL: SCHEDULE SESSION -->
-  <div class="modal-overlay" id="modal-schedule">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Agendar Sessão de Follow-up</h3>
-        <button class="modal-close"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-schedule">
-        <div class="modal-body">
-          <div class="form-group" id="schedule-collab-group">
-            <label class="form-label" for="schedule-collab-id-select">Colaborador</label>
-            <select id="schedule-collab-id-select" class="form-control" required>
-              <!-- Loaded dynamically -->
-            </select>
-          </div>
-          <div class="form-group row-2">
-            <div>
-              <label class="form-label" for="schedule-data">Data</label>
-              <input type="date" id="schedule-data" class="form-control" required>
-            </div>
-            <div>
-              <label class="form-label" for="schedule-hora">Horário</label>
-              <input type="time" id="schedule-hora" class="form-control" required>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="schedule-tipo">Tipo de Acompanhamento</label>
-            <select id="schedule-tipo" class="form-control" required>
-              <option value="Follow-up Mensal">Follow-up Mensal de Performance</option>
-              <option value="Feedback Operacional">Feedback Operacional Rápido</option>
-              <option value="Acompanhamento do Plano de Ação">Revisão de Plano de Ação</option>
-              <option value="Alinhamento de Carreira VIP">Desenvolvimento Individual (PDI)</option>
-              <option value="Alinhamento Técnico">Alinhamento Técnico & Protocolos</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary modal-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Agendar</button>
-        </div>
-      </form>
+    <div class="form-group">
+      <label class="form-label">Compliance (1-10)</label>
+      <input class="form-control" id="form-fb-compl" type="number" min="1" max="10" placeholder="9">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pontos Fortes</label>
+      <textarea class="form-control" id="form-fb-pontos-fortes" placeholder="Descreva os pontos positivos..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Pontos de Melhoria</label>
+      <textarea class="form-control" id="form-fb-pontos-melhoria" placeholder="Descreva áreas a desenvolver..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data do Feedback</label>
+      <input class="form-control" id="form-fb-data" type="date">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-feedback')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitFeedback()">Salvar Feedback</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: CREATE ACTION PLAN -->
-  <div class="modal-overlay" id="modal-action-plan">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Criar Plano de Ação Personalizado</h3>
-        <button class="modal-close"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-action-plan">
-        <input type="hidden" id="action-plan-collab-id">
-        <div class="modal-body">
-          
-          <div class="ai-helper-box" style="margin-bottom: 16px; padding: 12px;">
-            <div class="ai-helper-header" style="margin-bottom: 8px;">
-              <span class="ai-helper-title" style="font-size: 13px;">
-                <i data-lucide="sparkles"></i>
-                <span>Sugestão do Copilot IA</span>
-              </span>
-            </div>
-            <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
-              Recomendar plano com base no pilar de menor score do colaborador.
-            </p>
-            <div style="display:flex; gap: 8px;">
-              <select id="ai-plan-pilar" class="form-control" style="padding:6px; font-size:12px; flex:1;">
-                <option value="comunicacao">Melhorar Comunicação</option>
-                <option value="conformidade">Melhorar Conformidade & Segurança</option>
-                <option value="resolucao_problemas">Melhorar Resolução de Crise</option>
-                <option value="empatia">Melhorar Empatia / Atendimento</option>
-              </select>
-              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-generate-ai-plan">
-                <i data-lucide="cpu"></i>Gerar Plano IA
-              </button>
-            </div>
-          </div>
+<!-- DISC Test (Collaborator) -->
+<div class="modal-backdrop hidden" id="modal-disc">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span class="modal-title">Avaliação DISC</span>
+      <button class="modal-close" onclick="closeModal('modal-disc')">✕</button>
+    </div>
+    <div id="modal-disc-content"></div>
+  </div>
+</div>
 
-          <div class="form-group">
-            <label class="form-label" for="plan-titulo">Título do Plano</label>
-            <input type="text" id="plan-titulo" class="form-control" placeholder="Ex: Excelência em Protocolos..." required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="plan-descricao">Descrição do Plano de Desenvolvimento</label>
-            <textarea id="plan-descricao" class="form-control" placeholder="Detalhamento das etapas de treinamento ou atitudes recomendadas..." required></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="plan-metas">Metas Claras / Critério de Sucesso</label>
-            <input type="text" id="plan-metas" class="form-control" placeholder="Ex: Obter 100% de conformidade operacional nas próximas 5 rotas" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="plan-prazo">Prazo para Conclusão</label>
-            <input type="date" id="plan-prazo" class="form-control" required>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary modal-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Ativar Plano de Ação</button>
-        </div>
-      </form>
+<!-- Add Plano de Ação -->
+<div class="modal-backdrop hidden" id="modal-plano">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Criar Plano de Ação</span>
+      <button class="modal-close" onclick="closeModal('modal-plano')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Título do Plano</label>
+      <input class="form-control" id="form-plano-titulo" placeholder="Ex: Melhoria na comunicação com passageiros">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Objetivo</label>
+      <textarea class="form-control" id="form-plano-objetivo" placeholder="Descreva o objetivo do plano..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Prazo</label>
+      <input class="form-control" id="form-plano-prazo" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Responsável</label>
+      <input class="form-control" id="form-plano-responsavel" placeholder="Nome do responsável">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-plano')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitPlano()">Criar Plano</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: QR CODE DISPLAY -->
-  <div class="modal-overlay" id="modal-qr-view">
-    <div class="modal-box" style="max-width: 400px; text-align: center;">
-      <div class="modal-header">
-        <h3>Autoavaliação por QR Code</h3>
-        <button class="modal-close"><i data-lucide="x"></i></button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
-          O colaborador <strong><span id="qr-collab-name">Alice Santos</span></strong> pode escanear o QR Code abaixo com o dispositivo móvel para acessar seu portal e enviar a autoavaliação semanal de performance.
-        </p>
-        
-        <div class="qr-canvas-holder" style="margin: 0 auto 16px;">
-          <img src="" id="qr-modal-image" style="width: 120px; height: 120px;" alt="QR Code Link">
-        </div>
-        
-        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">
-          Link de Redirecionamento:<br>
-          <span style="font-family: monospace; word-break: break-all;" id="qr-modal-url">http://aeropulse.com/auto-eval/c1</span>
-        </p>
-
-        <button class="btn btn-primary btn-sm" id="btn-simulate-qr-action" style="width: 100%;">
-          <i data-lucide="external-link"></i>Simular Acesso de Autoavaliação
-        </button>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="btn-close-qr-modal" style="width: 100%;">Fechar</button>
-      </div>
+<!-- Agendar Sessão -->
+<div class="modal-backdrop hidden" id="modal-agenda">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Agendar Sessão de Acompanhamento</span>
+      <button class="modal-close" onclick="closeModal('modal-agenda')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tipo de Sessão</label>
+      <select class="form-control" id="form-agenda-tipo">
+        <option value="Follow-up">Follow-up</option>
+        <option value="Feedback 1:1">Feedback 1:1</option>
+        <option value="PDI">Plano de Desenvolvimento Individual</option>
+        <option value="Avaliação DISC">Avaliação DISC</option>
+        <option value="Reunião de Alinhamento">Reunião de Alinhamento</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data e Hora</label>
+      <input class="form-control" id="form-agenda-data" type="datetime-local">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observações</label>
+      <textarea class="form-control" id="form-agenda-obs" placeholder="Pauta da reunião..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-agenda')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitAgenda()">Agendar</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: AUTO-AVALIAÇÃO FORM -->
-  <div class="modal-overlay" id="modal-auto-eval">
-    <div class="modal-box" style="max-width: 480px;">
-      <div class="modal-header">
-        <h3>Enviar Autoavaliação Operacional</h3>
-        <button class="modal-close"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-auto-eval">
-        <input type="hidden" id="auto-eval-collab-id">
-        <div class="modal-body">
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-            Olá, <strong><span id="auto-eval-collab-name">Alice</span></strong>. Preencha este rápido formulário semanal para nos ajudar a mapear seu engajamento e bem-estar operacional.
-          </p>
+<!-- Toast Container -->
+<div id="toast-container"></div>
 
-          <div class="form-group row-2">
-            <div>
-              <label class="form-label" for="auto-nota-auto">Sua Nota Geral (0-10)</label>
-              <input type="number" id="auto-nota-auto" class="form-control" min="0" max="10" step="0.5" value="8.0" required>
-            </div>
-            <div>
-              <label class="form-label" for="auto-nota-motivacao">Sua Motivação (0-10)</label>
-              <input type="number" id="auto-nota-motivacao" class="form-control" min="0" max="10" step="1" value="8" required>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="auto-metas">Como está o andamento de suas metas?</label>
-            <select id="auto-metas" class="form-control" required>
-              <option value="Sim, batendo todas as metas.">100% — Batendo todas as metas com facilidade</option>
-              <option value="Sim, estou evoluindo.">Evoluindo — No caminho certo para atingir as metas</option>
-              <option value="Sim, mas com dificuldade.">Atenção — Seguindo com dificuldades operacionais</option>
-              <option value="Não, enfrentando muitos bloqueios.">Alerta — Enfrentando muitos problemas para atingir</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="auto-comentarios">Como você se sente? Algum ponto de atenção física/mental?</label>
-            <textarea id="auto-comentarios" class="form-control" placeholder="Ex: Carga de escalas pesada, cansaço acumulado ou ótimos feedbacks de equipe..." required></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary modal-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-success">Enviar Avaliação</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="toast-container"></div>
-
-  <!-- App Core JS Controllers -->
-  <script src="js/database.js"></script>
-  <script src="js/disc.js"></script>
-  <script src="js/risk.js"></script>
-  <script src="js/ai.js"></script>
-  <script src="js/app.js"></script>
+<!-- Scripts -->
+<script src="js/database.js"></script>
+<script src="js/disc.js"></script>
+<script src="js/risk.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

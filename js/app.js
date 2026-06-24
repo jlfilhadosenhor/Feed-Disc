@@ -1,1473 +1,1025 @@
 /**
- * AeroPulse App Controller
- * Manages view routing, UI event listeners, charts rendering, and coordinates models.
+ * AeroPulse — app.js
+ * Main application controller. Handles onboarding, routing, and all views.
  */
 
+// ─── State ────────────────────────────────────────────────────────────────────
+let currentView = 'dashboard';
+let currentColabId = null;
+let currentPlanoColabId = null;
+let currentAgendaColabId = null;
+
+// Onboarding state
+let obGestorData = {};
+let obDiscEngine = null;
+let obCurrentQ = 0;
+let obDiscResult = null;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Global State
-  let currentRole = 'manager'; // 'manager' | 'collaborator'
-  let activeCollabPortalId = 'c1'; // Default collaborator for portal view
-  let selectedCollabId = null; // Collaborator selected for detail view
-  
-  // Chart Instances
-  let teamDiscChartInstance = null;
-  let collabEvolutionChartInstance = null;
-  let portalEvolutionChartInstance = null;
+  if (db.isSetupComplete()) {
+    launchApp();
+  } else {
+    showOnboarding();
+  }
+});
 
-  // Initialize Lucide Icons
-  lucide.createIcons();
+function showOnboarding() {
+  document.getElementById('onboarding-overlay').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
 
-  // Initialize App
-  function initApp() {
-    window.db.init();
-    refreshAllViews();
-    setupEventListeners();
+function launchApp() {
+  document.getElementById('onboarding-overlay').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  renderSidebarProfile();
+  navigateTo('dashboard', document.querySelector('[data-view="dashboard"]'));
+}
+
+// ─── ONBOARDING FLOW ─────────────────────────────────────────────────────────
+function obNextStep1() {
+  const nome    = document.getElementById('ob-nome').value.trim();
+  const cargo   = document.getElementById('ob-cargo').value.trim();
+  const empresa = document.getElementById('ob-empresa').value.trim();
+  const email   = document.getElementById('ob-email').value.trim();
+
+  if (!nome || !cargo || !empresa || !email) {
+    showToast('Preencha todos os campos antes de continuar.', 'error');
+    return;
   }
 
-  // --- RENDERING VIEWS ---
+  obGestorData = { nome, cargo, empresa, email };
+  obSetStep(2);
+}
 
-  function refreshAllViews() {
-    renderSidebarFooter();
-    
-    if (currentRole === 'manager') {
-      document.getElementById('nav-group-manager').style.display = 'block';
-      document.getElementById('nav-group-collaborator').style.display = 'none';
-      
-      renderDashboardView();
-      renderColaboradoresView();
-      renderRiscosView();
-      renderAgendaView();
-    } else {
-      document.getElementById('nav-group-manager').style.display = 'none';
-      document.getElementById('nav-group-collaborator').style.display = 'block';
-      
-      renderCollaboratorPortalView();
-      renderCollaboratorAgendaView();
-    }
+function obStartDisc() {
+  obDiscEngine = new DISCEngine(DISC_MANAGER_QUESTIONS);
+  obCurrentQ = 0;
+  obSetStep(3);
+  obRenderQuestion();
+}
+
+function obRenderQuestion() {
+  const q = DISC_MANAGER_QUESTIONS[obCurrentQ];
+  const total = DISC_MANAGER_QUESTIONS.length;
+  const pct   = Math.round(((obCurrentQ + 1) / total) * 100);
+  const letters = ['A','B','C','D'];
+
+  document.getElementById('ob-disc-counter').textContent = `Pergunta ${obCurrentQ + 1} de ${total}`;
+  document.getElementById('ob-disc-progress').style.width = pct + '%';
+  document.getElementById('ob-disc-question').textContent = q.pergunta;
+
+  const opts = document.getElementById('ob-disc-options');
+  opts.innerHTML = '';
+  // Shuffle options for each render (keep original order for consistency)
+  q.opcoes.forEach((op, i) => {
+    const div = document.createElement('div');
+    div.className = 'disc-option';
+    const saved = obDiscEngine.respostas[q.id];
+    if (saved === op.tipo) div.classList.add('selected');
+
+    div.innerHTML = `<div class="disc-option-letter">${letters[i]}</div><span>${op.texto}</span>`;
+    div.onclick = () => {
+      document.querySelectorAll('.disc-option').forEach(d => d.classList.remove('selected'));
+      div.classList.add('selected');
+      obDiscEngine.registrarResposta(q.id, op.tipo);
+      document.getElementById('ob-disc-next').disabled = false;
+    };
+    opts.appendChild(div);
+  });
+
+  document.getElementById('ob-disc-next').disabled = !obDiscEngine.respostas[q.id];
+  document.getElementById('ob-disc-prev').disabled = obCurrentQ === 0;
+
+  // Last question: change button to "Ver Resultado"
+  const nextBtn = document.getElementById('ob-disc-next');
+  nextBtn.textContent = obCurrentQ === total - 1 ? 'Ver Resultado →' : 'Próxima →';
+}
+
+function obDiscNext() {
+  const total = DISC_MANAGER_QUESTIONS.length;
+  if (obCurrentQ < total - 1) {
+    obCurrentQ++;
+    obRenderQuestion();
+  } else {
+    // Show result
+    obDiscResult = obDiscEngine.calcularResultado();
+    obSetStep(4);
+    obRenderDiscResult();
   }
+}
 
-  // Sidebar User Info
-  function renderSidebarFooter() {
-    const userImg = document.getElementById('sidebar-user-img');
-    const userName = document.getElementById('sidebar-user-name');
-    const userRole = document.getElementById('sidebar-user-role');
-
-    if (currentRole === 'manager') {
-      const manager = window.db.getGestores()[0];
-      userImg.src = 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?auto=format&fit=crop&q=80&w=150';
-      userName.textContent = manager.nome;
-      userRole.textContent = manager.cargo;
-    } else {
-      const collab = window.db.getColaboradorById(activeCollabPortalId);
-      if (collab) {
-        userImg.src = collab.foto;
-        userName.textContent = collab.nome;
-        userRole.textContent = collab.cargo;
-      }
-    }
+function obDiscPrev() {
+  if (obCurrentQ > 0) {
+    obCurrentQ--;
+    obRenderQuestion();
   }
+}
 
-  // View: Manager Dashboard
-  function renderDashboardView() {
-    const kpis = window.riskEngine.calcularKPIsGlobais();
-    
-    // Set KPI Values
-    document.getElementById('kpi-performance').textContent = kpis.performance;
-    document.getElementById('kpi-engajamento').textContent = kpis.engajamento + '%';
-    
-    const evolEl = document.getElementById('kpi-evolucao');
-    const evolTrend = document.getElementById('trend-evolucao');
-    if (kpis.evolucao >= 0) {
-      evolEl.textContent = `+${kpis.evolucao}%`;
-      evolTrend.innerHTML = `<i data-lucide="arrow-up-right"></i><span>Subindo vs. mês anterior</span>`;
-      evolTrend.className = 'kpi-trend positive';
-    } else {
-      evolEl.textContent = `${kpis.evolucao}%`;
-      evolTrend.innerHTML = `<i data-lucide="arrow-down-right"></i><span>Queda vs. mês anterior</span>`;
-      evolTrend.className = 'kpi-trend negative';
-    }
-    
-    const riskCard = document.getElementById('kpi-risco-card');
-    const riskEl = document.getElementById('kpi-risco');
-    const riskTrend = document.getElementById('trend-risco');
-    
-    let riskLabel = 'Baixo';
-    let riskClass = 'kpi-card performance';
-    if (kpis.risco >= 70) {
-      riskLabel = 'Alto';
-      riskClass = 'kpi-card risco';
-      riskTrend.innerHTML = `<i data-lucide="alert-triangle"></i><span>Risco Operacional Elevado</span>`;
-      riskTrend.className = 'kpi-trend negative';
-    } else if (kpis.risco >= 40) {
-      riskLabel = 'Médio';
-      riskClass = 'kpi-card risco';
-      riskTrend.innerHTML = `<i data-lucide="alert-triangle"></i><span>Sinal de atenção na equipe</span>`;
-      riskTrend.className = 'kpi-trend warning';
-    } else {
-      riskLabel = 'Baixo';
-      riskClass = 'kpi-card risco-baixo';
-      riskTrend.innerHTML = `<i data-lucide="check-circle-2"></i><span>Operação estável</span>`;
-      riskTrend.className = 'kpi-trend positive';
-    }
-    
-    riskEl.textContent = `${riskLabel} (${kpis.risco})`;
-    riskCard.className = riskClass;
-
-    // Render DISC Distribution Chart
-    renderDiscDistributionChart();
-
-    // Render Risk Alertas List
-    const riskListContainer = document.getElementById('dashboard-risk-list');
-    riskListContainer.innerHTML = '';
-    
-    const colaboradores = window.db.getColaboradores();
-    let alertCount = 0;
-    
-    colaboradores.forEach(c => {
-      const riskObj = window.riskEngine.calcularRisco(c.id);
-      if (riskObj.score >= 40) {
-        alertCount++;
-        const item = document.createElement('div');
-        item.className = `risk-item ${riskObj.class}`;
-        item.innerHTML = `
-          <div class="risk-item-info">
-            <img src="${c.foto}" alt="${c.nome}" class="risk-collab-img">
-            <div class="risk-meta">
-              <h5>${c.nome}</h5>
-              <p>${riskObj.flags[0] || 'Desvio operacional identificado'}</p>
-            </div>
-          </div>
-          <span class="risk-badge-number">${riskObj.score}</span>
-        `;
-        riskListContainer.appendChild(item);
-      }
-    });
-
-    if (alertCount === 0) {
-      riskListContainer.innerHTML = `
-        <div style="text-align: center; padding: 32px 0; color: var(--text-muted);">
-          <i data-lucide="shield-check" style="font-size:32px; color: var(--success); margin-bottom:8px;"></i>
-          <p>Nenhum alerta de risco operacional ativo no momento.</p>
+function obRenderDiscResult() {
+  const r = obDiscResult;
+  const profile = DISC_PROFILES[r.perfil_dominante];
+  const container = document.getElementById('ob-disc-result');
+  container.innerHTML = `
+    <div class="disc-result-badge" style="color:${profile.cor};border-color:${profile.cor};background:${profile.cor}1a;">
+      <span>${profile.emoji}</span>
+    </div>
+    <div class="disc-result-name" style="color:${profile.cor}">${profile.nome}</div>
+    <div class="disc-result-desc">${profile.descricao}</div>
+    <div class="disc-bars">
+      ${Object.entries(r.percentuais).map(([k,v]) => `
+        <div class="disc-bar-item">
+          <label><span>${DISC_PROFILES[k].emoji} ${DISC_PROFILES[k].nome}</span><span>${v}%</span></label>
+          <div class="bar"><div class="bar-fill bar-${k}" style="width:${v}%"></div></div>
         </div>
-      `;
-    }
-    
-    document.getElementById('risk-alert-count').textContent = `${alertCount} ${alertCount === 1 ? 'Alerta' : 'Alertas'}`;
-    if (alertCount > 0) {
-      document.getElementById('risk-alert-count').className = 'badge badge-danger';
-    } else {
-      document.getElementById('risk-alert-count').className = 'badge badge-success';
-    }
+      `).join('')}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px;">
+      ${profile.pontos_fortes.map(p => `<span class="badge badge-purple">${p}</span>`).join('')}
+    </div>
+  `;
+}
 
-    // Render Upcoming Follow-ups in Dashboard
-    const agendaListContainer = document.getElementById('dashboard-agenda-list');
-    agendaListContainer.innerHTML = '';
-    
-    const agendas = window.db.getAgendas().filter(a => a.status === 'Agendado').slice(0, 3);
-    if (agendas.length > 0) {
-      agendas.forEach(a => {
-        const collab = window.db.getColaboradorById(a.colaborador_id);
-        if (collab) {
-          const dateObj = new Date(a.data);
-          const day = dateObj.getDate() + 1;
-          const monthStr = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-          
-          const item = document.createElement('div');
-          item.className = 'agenda-item';
-          item.innerHTML = `
-            <div class="agenda-date-box">
-              <span class="agenda-date-day">${day}</span>
-              <span class="agenda-date-month">${monthStr}</span>
-            </div>
-            <div class="agenda-item-content">
-              <div class="agenda-item-title">${a.tipo}</div>
-              <div class="agenda-item-meta">
-                <i data-lucide="user"></i><span>${collab.nome}</span>
-                <i data-lucide="clock"></i><span>${a.hora}</span>
-              </div>
-            </div>
-          `;
-          agendaListContainer.appendChild(item);
-        }
-      });
-    } else {
-      agendaListContainer.innerHTML = `
-        <p style="color: var(--text-muted); font-size:13px; text-align:center; padding:16px 0;">Nenhuma sessão agendada.</p>
-      `;
-    }
+function obFinish() {
+  const gestor = {
+    ...obGestorData,
+    disc: obDiscResult,
+    foto: `https://ui-avatars.com/api/?name=${encodeURIComponent(obGestorData.nome)}&background=7c3aed&color=fff&size=128`,
+    created_at: new Date().toISOString()
+  };
+  db.saveGestor(gestor);
+  launchApp();
+}
 
-    // Render Recent Feedbacks Table
-    const recentFeedbacksTbody = document.getElementById('dashboard-recent-feedbacks');
-    recentFeedbacksTbody.innerHTML = '';
-    
-    const feedbacks = window.db.getFeedbacks().slice(0, 4);
-    feedbacks.forEach(f => {
-      const collab = window.db.getColaboradorById(f.colaborador_id);
-      if (collab) {
-        const avg = ((f.nota_performance + f.nota_comportamento + f.nota_compliance) / 3).toFixed(1);
-        const tr = document.createElement('tr');
-        tr.className = 'tr-hover';
-        tr.innerHTML = `
-          <td>
-            <div class="collab-cell">
-              <img src="${collab.foto}" alt="${collab.nome}" class="collab-cell-img" style="width:28px; height:28px;">
-              <span>${collab.nome}</span>
-            </div>
-          </td>
-          <td>${formatDate(f.data)}</td>
-          <td><span class="badge badge-info">${avg}</span></td>
-          <td>${f.ia_sugerido ? '<span class="badge badge-success">AI Assisted</span>' : '<span class="badge badge-muted">Padrão</span>'}</td>
-        </tr>
-        `;
-        recentFeedbacksTbody.appendChild(tr);
-      }
-    });
+function obSetStep(n) {
+  document.querySelectorAll('.onboarding-step').forEach(s => s.classList.remove('active'));
+  document.getElementById(`ob-step-${n}`).classList.add('active');
+}
 
-    lucide.createIcons();
+// ─── SIDEBAR & ROUTING ────────────────────────────────────────────────────────
+function renderSidebarProfile() {
+  const gestor = db.getGestor();
+  if (!gestor) return;
+  document.getElementById('sidebar-name').textContent = gestor.nome;
+  document.getElementById('sidebar-avatar').src = gestor.foto || '';
+  const discBadge = document.getElementById('sidebar-disc-badge');
+  if (gestor.disc) {
+    const p = DISC_PROFILES[gestor.disc.perfil_dominante];
+    discBadge.textContent = `${p.emoji} ${p.nome}`;
+    discBadge.style.background = p.cor + '22';
+    discBadge.style.color = p.cor;
+    discBadge.style.borderColor = p.cor + '66';
+  } else {
+    discBadge.textContent = 'DISC Pendente';
+  }
+}
+
+function navigateTo(view, el) {
+  currentView = view;
+
+  // Update nav active state
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  else {
+    const target = document.querySelector(`[data-view="${view}"]`);
+    if (target) target.classList.add('active');
   }
 
-  // Dashboard Bar Chart: DISC Distribution
-  function renderDiscDistributionChart() {
-    const canvas = document.getElementById('chart-disc-distribution');
-    if (!canvas) return;
+  // Hide all views
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
-    const dbData = window.db.getData();
-    const counts = { D: 0, I: 0, S: 0, C: 0 };
-    
-    dbData.disc_resultados.forEach(d => {
-      counts.D += d.D || 0;
-      counts.I += d.I || 0;
-      counts.S += d.S || 0;
-      counts.C += d.C || 0;
-    });
+  const titles = {
+    'dashboard':      ['Dashboard',             'Visão geral da operação'],
+    'colaboradores':  ['Colaboradores',         'Equipe cadastrada na plataforma'],
+    'feedbacks':      ['Feedbacks',             'Histórico de feedbacks registrados'],
+    'risco':          ['Risco Operacional',     'Análise de risco por colaborador'],
+    'planos':         ['Planos de Ação',        'Planos ativos da equipe'],
+    'agenda':         ['Agenda',                'Sessões de acompanhamento agendadas'],
+    'meu-perfil':     ['Meu Perfil',            'Seu perfil DISC e informações de gestor'],
+    'perfil-colab':   ['Perfil do Colaborador', 'Histórico e indicadores do colaborador'],
+  };
 
-    const total = dbData.disc_resultados.length || 1;
-    const avgD = Math.round(counts.D / total);
-    const avgI = Math.round(counts.I / total);
-    const avgS = Math.round(counts.S / total);
-    const avgC = Math.round(counts.C / total);
+  const [title, subtitle] = titles[view] || ['AeroPulse', ''];
+  document.getElementById('top-bar-title').textContent = title;
+  document.getElementById('top-bar-subtitle').textContent = subtitle;
 
-    if (teamDiscChartInstance) {
-      teamDiscChartInstance.destroy();
-    }
+  // Show / hide top bar action button
+  document.getElementById('top-bar-action-btn').style.display =
+    ['dashboard','colaboradores'].includes(view) ? 'flex' : 'none';
 
-    teamDiscChartInstance = new Chart(canvas, {
-      type: 'bar',
-      data: {
-        labels: ['Dominância (D)', 'Influência (I)', 'Estabilidade (S)', 'Conformidade (C)'],
-        datasets: [{
-          label: 'Prevalência Média (%)',
-          data: [avgD, avgI, avgS, avgC],
-          backgroundColor: ['#f43f5e', '#eab308', '#06b6d4', '#8b5cf6'],
-          borderRadius: 8,
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: {
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: '#94a3b8' },
-            min: 0,
-            max: 100
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: '#94a3b8' }
-          }
-        }
-      }
-    });
+  // Activate view and render
+  const viewEl = document.getElementById(`view-${view}`);
+  if (viewEl) {
+    viewEl.classList.add('active');
+    renderView(view);
+  }
+}
+
+function renderView(view) {
+  switch (view) {
+    case 'dashboard':     renderDashboard();     break;
+    case 'colaboradores': renderColaboradores(); break;
+    case 'feedbacks':     renderFeedbacks();     break;
+    case 'risco':         renderRisco();         break;
+    case 'planos':        renderPlanos();        break;
+    case 'agenda':        renderAgenda();        break;
+    case 'meu-perfil':    renderMeuPerfil();     break;
+    case 'perfil-colab':  renderPerfilColab();   break;
+  }
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const colabs = db.getColaboradores();
+  const feedbacks = db.getFeedbacks();
+
+  if (colabs.length === 0) {
+    document.getElementById('dash-empty').style.display = 'flex';
+    document.getElementById('dash-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('dash-empty').style.display = 'none';
+  document.getElementById('dash-content').style.display = 'block';
+
+  // KPIs
+  const totalFeedbacks = feedbacks.length;
+  const avgScore = feedbacks.length
+    ? (feedbacks.reduce((s, f) => s + ((parseFloat(f.nota_performance) + parseFloat(f.nota_comportamento) + parseFloat(f.nota_compliance)) / 3), 0) / feedbacks.length).toFixed(1)
+    : '—';
+  const discResultados = db.getDiscResultados();
+  const semDisc = colabs.filter(c => !discResultados.find(d => d.colaborador_id === c.id)).length;
+
+  document.getElementById('dash-kpis').innerHTML = `
+    <div class="kpi-card accent-purple">
+      <div class="kpi-label">Total de Colaboradores</div>
+      <div class="kpi-value">${colabs.length}</div>
+      <div class="kpi-sub">Equipe cadastrada</div>
+    </div>
+    <div class="kpi-card accent-blue">
+      <div class="kpi-label">Feedbacks Registrados</div>
+      <div class="kpi-value">${totalFeedbacks}</div>
+      <div class="kpi-sub">No histórico geral</div>
+    </div>
+    <div class="kpi-card accent-green">
+      <div class="kpi-label">Score Médio</div>
+      <div class="kpi-value">${avgScore}</div>
+      <div class="kpi-sub">Performance da equipe</div>
+    </div>
+    <div class="kpi-card accent-red">
+      <div class="kpi-label">Sem Perfil DISC</div>
+      <div class="kpi-value">${semDisc}</div>
+      <div class="kpi-sub">Aguardando avaliação</div>
+    </div>
+  `;
+
+  // DISC distribution
+  const discCount = { D:0, I:0, E:0, C:0 };
+  discResultados.forEach(d => { if (discCount[d.perfil_dominante] !== undefined) discCount[d.perfil_dominante]++; });
+  document.getElementById('dash-disc-chart').innerHTML = `
+    <div class="disc-bars-list">
+      ${Object.entries(discCount).map(([k,v]) => {
+        const p = DISC_PROFILES[k];
+        const pct = discResultados.length ? Math.round((v/discResultados.length)*100) : 0;
+        return `
+          <div class="disc-bar-row">
+            <label><span>${p.emoji} ${p.nome}</span><span>${v} pessoa${v!==1?'s':''} (${pct}%)</span></label>
+            <div class="bar"><div class="bar-fill bar-${k}" style="width:${pct}%"></div></div>
+          </div>`;
+      }).join('')}
+    </div>
+    ${discResultados.length === 0 ? '<div class="chart-placeholder" style="margin-top:12px">Nenhum perfil DISC avaliado ainda</div>' : ''}
+  `;
+
+  // Risk list
+  const riskEl = document.getElementById('dash-risk-list');
+  if (feedbacks.length === 0) {
+    riskEl.innerHTML = '<div class="chart-placeholder">Nenhum feedback registrado ainda</div>';
+  } else {
+    const riscos = colabs.map(c => {
+      const fbs = db.getFeedbacksByColaborador(c.id);
+      if (!fbs.length) return null;
+      const avg = fbs.reduce((s, f) => s + ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3), 0) / fbs.length;
+      const risk = Math.round(100 - (avg * 10));
+      return { c, risk };
+    }).filter(Boolean).sort((a,b) => b.risk - a.risk).slice(0,5);
+
+    riskEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px;">
+      ${riscos.map(({c, risk}) => {
+        const cls = risk >= 60 ? 'risk-high' : risk >= 35 ? 'risk-medium' : 'risk-low';
+        const label = risk >= 60 ? '🔴 Alto' : risk >= 35 ? '🟡 Médio' : '🟢 Baixo';
+        return `
+          <div class="risk-bar-wrap">
+            <span style="width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.82rem">${c.nome}</span>
+            <div class="risk-bar"><div class="risk-fill ${cls}" style="width:${risk}%"></div></div>
+            <span style="width:70px;text-align:right;font-size:0.78rem;color:#94a3b8">${label}</span>
+          </div>`;
+      }).join('')}
+    </div>`;
   }
 
-  // View: Colaboradores List
-  function renderColaboradoresView() {
-    const tbody = document.getElementById('team-list-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    const colaboradores = window.db.getColaboradores();
-    
-    colaboradores.forEach(c => {
-      const disc = window.db.getDiscResultByColaborador(c.id);
-      const feedbacks = window.db.getFeedbacksByColaborador(c.id);
-      const risk = window.riskEngine.calcularRisco(c.id);
-
-      let discBadge = `<span class="badge badge-muted">Sem Teste</span>`;
-      if (disc) {
-        const prim = disc.perfil.split('/')[0];
-        let colorClass = 'badge-muted';
-        if (prim === 'Executor') colorClass = 'badge-danger';
-        else if (prim === 'Comunicador') colorClass = 'badge-warning';
-        else if (prim === 'Planejador') colorClass = 'badge-info';
-        else if (prim === 'Analista') colorClass = 'badge-success';
-        discBadge = `<span class="badge ${colorClass}">${disc.perfil}</span>`;
-      }
-
-      const lastFeedbackDate = feedbacks.length > 0 ? formatDate(feedbacks[0].data) : 'Nenhum';
-
-      let scoreGeral = '—';
-      if (feedbacks.length > 0) {
-        const latest = feedbacks[0];
-        scoreGeral = ((latest.nota_performance + latest.nota_comportamento + latest.nota_compliance) / 3).toFixed(1);
-      }
-
-      let riskClass = 'badge-success';
-      if (risk.score >= 70) riskClass = 'badge-danger';
-      else if (risk.score >= 40) riskClass = 'badge-warning';
-      const riskBadge = `<span class="badge ${riskClass}">${risk.nivel} (${risk.score})</span>`;
-
-      const tr = document.createElement('tr');
-      tr.className = 'tr-hover';
-      tr.innerHTML = `
-        <td>
-          <div class="collab-cell">
-            <img src="${c.foto}" alt="${c.nome}" class="collab-cell-img">
-            <div class="collab-name-info">
-              <span>${c.nome}</span>
-              <span>${c.email}</span>
-            </div>
+  // Recent feedbacks
+  const recentFbs = feedbacks.slice(-5).reverse();
+  const fbEl = document.getElementById('dash-recent-feedbacks');
+  if (recentFbs.length === 0) {
+    fbEl.innerHTML = '<div class="chart-placeholder">Nenhum feedback registrado ainda</div>';
+  } else {
+    fbEl.innerHTML = `<div class="timeline">${recentFbs.map(f => {
+      const colab = db.getColaboradorById(f.colaborador_id);
+      const avg = ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3).toFixed(1);
+      return `
+        <div class="timeline-item">
+          <div class="timeline-meta">${colab?.nome || 'Colaborador'} · ${f.data}</div>
+          <div style="font-size:0.9rem;margin-bottom:6px;">${f.pontos_fortes?.substring(0,120) || '—'}</div>
+          <div class="timeline-scores">
+            <span class="score-chip">Performance: ${f.nota_performance}</span>
+            <span class="score-chip">Comportamento: ${f.nota_comportamento}</span>
+            <span class="score-chip">Compliance: ${f.nota_compliance}</span>
+            <span class="score-chip">Média: ${avg}</span>
           </div>
-        </td>
-        <td>${c.cargo}</td>
-        <td>${discBadge}</td>
-        <td>${lastFeedbackDate}</td>
-        <td><span class="badge badge-info" style="font-size:12px;">${scoreGeral}</span></td>
-        <td>${riskBadge}</td>
-        <td>
-          <div style="display:flex; gap:6px;">
-            <button class="btn btn-secondary btn-sm btn-view-collab" data-id="${c.id}">
-              <i data-lucide="eye" style="width:14px; height:14px;"></i>Ver Ficha
-            </button>
-            <button class="btn btn-primary btn-sm btn-feed-collab" data-id="${c.id}">
-              <i data-lucide="message-square-plus" style="width:14px; height:14px;"></i>Feedback
-            </button>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    lucide.createIcons();
-
-    document.querySelectorAll('.btn-view-collab').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.getAttribute('data-id');
-        openCollaboratorDetails(id);
-      });
-    });
-
-    document.querySelectorAll('.btn-feed-collab').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.getAttribute('data-id');
-        openFeedbackModal(id);
-      });
-    });
+        </div>`;
+    }).join('')}</div>`;
   }
+}
 
-  // Open detailed file for collaborator
-  function openCollaboratorDetails(id) {
-    selectedCollabId = id;
-    const collab = window.db.getColaboradorById(id);
-    const disc = window.db.getDiscResultByColaborador(id);
-    const feedbacks = window.db.getFeedbacksByColaborador(id);
-    const planos = window.db.getPlanosAcaoByColaborador(id);
+// ─── COLABORADORES ────────────────────────────────────────────────────────────
+function renderColaboradores() {
+  const colabs = db.getColaboradores();
+  const grid   = document.getElementById('colab-cards-grid');
+  const empty  = document.getElementById('colab-empty');
 
-    if (!collab) return;
+  if (colabs.length === 0) {
+    empty.style.display = 'flex';
+    grid.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
 
-    document.getElementById('collab-detail-panel').style.display = 'block';
-    
-    document.getElementById('detail-avatar').src = collab.foto;
-    document.getElementById('detail-name').textContent = collab.nome;
-    document.getElementById('detail-cargo').textContent = collab.cargo;
-    
-    const statusBadge = document.getElementById('detail-status-badge');
-    statusBadge.textContent = collab.status;
-    statusBadge.className = collab.status === 'Ativo' ? 'badge badge-success' : 'badge badge-muted';
+  grid.innerHTML = colabs.map(c => {
+    const fbs  = db.getFeedbacksByColaborador(c.id);
+    const disc = db.getDiscResultByColaborador(c.id);
+    const avg  = fbs.length
+      ? (fbs.reduce((s,f) => s + ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3), 0) / fbs.length).toFixed(1)
+      : null;
+    const risk = avg ? Math.round(100 - (parseFloat(avg) * 10)) : null;
+    const riskCls = risk === null ? '' : risk >= 60 ? 'badge-red' : risk >= 35 ? 'badge-yellow' : 'badge-green';
+    const riskLabel = risk === null ? '—' : risk >= 60 ? '🔴 Alto' : risk >= 35 ? '🟡 Médio' : '🟢 Baixo';
+    const discLabel = disc ? `${DISC_PROFILES[disc.perfil_dominante].emoji} ${disc.nome_perfil}` : '— Sem DISC';
+    const discBadgeCls = disc ? `disc-${disc.perfil_dominante}` : 'badge-blue';
 
-    let avgPerf = '—';
-    let avgCompliance = '—';
-    if (feedbacks.length > 0) {
-      avgPerf = (feedbacks.reduce((acc, f) => acc + f.nota_performance, 0) / feedbacks.length).toFixed(1);
-      avgCompliance = (feedbacks.reduce((acc, f) => acc + f.nota_compliance, 0) / feedbacks.length).toFixed(1);
-    }
-    document.getElementById('detail-stat-perf').textContent = avgPerf;
-    document.getElementById('detail-stat-compliance').textContent = avgCompliance;
-
-    const discProfileEl = document.getElementById('detail-disc-profile');
-    const discScoresRow = document.getElementById('detail-disc-scores-row');
-    const discDescEl = document.getElementById('detail-disc-desc');
-    const btnTakeDisc = document.getElementById('btn-detail-take-disc');
-
-    discScoresRow.innerHTML = '';
-
-    if (disc) {
-      discProfileEl.textContent = disc.perfil;
-      btnTakeDisc.innerHTML = `<i data-lucide="refresh-cw"></i>Mapear Novamente`;
-      
-      const primarySigla = disc.principal;
-      const interpretation = window.discEngine.interpretacoes[primarySigla];
-      
-      const letters = ['D', 'I', 'S', 'C'];
-      letters.forEach(l => {
-        const score = disc[l] || 0;
-        const isActive = (l === disc.principal || l === disc.secundario);
-        
-        const card = document.createElement('div');
-        card.className = `disc-pill-col ${isActive ? 'active-' + l : ''}`;
-        card.innerHTML = `
-          <div class="disc-pill-label">${l}</div>
-          <div class="disc-pill-value">${score}%</div>
-        `;
-        discScoresRow.appendChild(card);
-      });
-
-      discDescEl.innerHTML = `
-        <strong>Perfil Dominante: ${interpretation.nome}</strong><br>
-        ${interpretation.descricao}<br><br>
-        <strong>Pontos Fortes:</strong> ${interpretation.pontos_fortes.join(', ')}<br>
-        <strong>Pontos de Melhoria:</strong> ${interpretation.pontos_melhoria.join(', ')}<br><br>
-        <strong>Como o Gestor deve se comunicar:</strong><br>
-        <span style="color: #fff; font-style: italic;">"${interpretation.comunicacao_gestor}"</span>
-      `;
-    } else {
-      discProfileEl.textContent = 'Não Mapeado';
-      btnTakeDisc.innerHTML = `<i data-lucide="brain"></i>Aplicar DISC`;
-      discScoresRow.innerHTML = `
-        <div style="width:100%; text-align:center; padding:12px; border:1px dashed var(--border-color); border-radius:8px; color:var(--text-muted);">
-          Nenhum mapeamento comportamental registrado.
+    return `
+      <div class="colab-card" onclick="openPerfilColab('${c.id}')">
+        <div class="colab-card-top">
+          <img src="${c.foto}" class="avatar-sm" alt="${c.nome}" style="width:48px;height:48px;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.nome)}&background=7c3aed&color=fff&size=80'">
+          <div class="colab-card-info">
+            <div class="name">${c.nome}</div>
+            <div class="role">${c.cargo} · ${c.setor}</div>
+          </div>
         </div>
-      `;
-      discDescEl.textContent = 'O perfil DISC ajuda a entender a personalidade operacional do profissional, seus pontos de foco e a forma ideal de conduzir conversas de feedback e desenvolvimento.';
-    }
+        <div class="colab-card-stats">
+          <span class="badge ${riskBadgeCls(risk)}">${riskLabel}</span>
+          <span class="badge ${discBadgeCls}">${discLabel}</span>
+          <span class="badge badge-purple">Score: ${avg || '—'}</span>
+          <span class="badge badge-blue">${fbs.length} feedback${fbs.length!==1?'s':''}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
 
-    const qrUrl = `http://aeropulse.com/auto-eval/${collab.id}`;
-    const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrUrl)}`;
-    document.getElementById('detail-qr-img').src = qrImgUrl;
+function riskBadgeCls(risk) {
+  if (risk === null) return 'badge-blue';
+  if (risk >= 60)   return 'badge-red';
+  if (risk >= 35)   return 'badge-yellow';
+  return 'badge-green';
+}
 
-    const plansTbody = document.getElementById('detail-action-plans-tbody');
-    plansTbody.innerHTML = '';
-    
-    if (planos.length > 0) {
-      planos.forEach(p => {
-        let badgeClass = 'badge-warning';
-        if (p.status === 'Concluído') badgeClass = 'badge-success';
-        else if (new Date(p.prazo) < new Date() && p.status === 'Em Andamento') badgeClass = 'badge-danger';
-        
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>
-            <strong>${p.titulo}</strong>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${p.descricao}</div>
-          </td>
-          <td>${p.metas}</td>
-          <td>${formatDate(p.prazo)}</td>
-          <td><span class="badge ${badgeClass}">${p.status}</span></td>
-          <td>
-            ${p.status === 'Em Andamento' ? `
-              <button class="btn btn-secondary btn-sm btn-complete-plan" data-id="${p.id}">
-                Concluir
-              </button>
-            ` : '—'}
-          </td>
-        `;
-        plansTbody.appendChild(tr);
-      });
-    } else {
-      plansTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Nenhum plano de ação cadastrado.</td></tr>`;
-    }
+// ─── PERFIL DO COLABORADOR ────────────────────────────────────────────────────
+function openPerfilColab(id) {
+  currentColabId = id;
+  navigateTo('perfil-colab', null);
+}
 
-    const feedsTbody = document.getElementById('detail-feedbacks-history-tbody');
-    feedsTbody.innerHTML = '';
-    
-    if (feedbacks.length > 0) {
-      feedbacks.forEach(f => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatDate(f.data)}</td>
-          <td><span class="badge badge-muted">${f.nota_performance}</span></td>
-          <td><span class="badge badge-muted">${f.nota_comportamento}</span></td>
-          <td><span class="badge badge-muted">${f.nota_compliance}</span></td>
-          <td style="max-width: 300px; white-space: normal; line-height: 1.4;">${f.observacoes}</td>
-          <td>${f.ia_sugerido ? '<span class="badge badge-success">AI Assisted</span>' : '<span class="badge badge-muted">Padrão</span>'}</td>
-        `;
-        feedsTbody.appendChild(tr);
-      });
-    } else {
-      feedsTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Nenhum feedback registrado.</td></tr>`;
-    }
+function renderPerfilColab() {
+  const c    = db.getColaboradorById(currentColabId);
+  if (!c) return;
+  const fbs  = db.getFeedbacksByColaborador(currentColabId);
+  const disc = db.getDiscResultByColaborador(currentColabId);
+  const planos = db.getPlanosAcaoByColaborador(currentColabId);
+  const agendas = db.getAgendasByColaborador(currentColabId);
 
-    renderCollabEvolutionChart(collab.id);
-    
-    lucide.createIcons();
+  const avg = fbs.length
+    ? (fbs.reduce((s,f) => s + ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3), 0) / fbs.length).toFixed(1)
+    : '—';
+  const risk = avg !== '—' ? Math.round(100 - (parseFloat(avg) * 10)) : null;
+  const riskCls  = risk === null ? '' : risk >= 60 ? 'risk-high' : risk >= 35 ? 'risk-medium' : 'risk-low';
+  const riskText = risk === null ? 'N/A' : risk >= 60 ? '🔴 Alto' : risk >= 35 ? '🟡 Médio' : '🟢 Baixo';
 
-    document.getElementById('collab-detail-panel').scrollIntoView({ behavior: 'smooth' });
-
-    document.querySelectorAll('.btn-complete-plan').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const planId = e.currentTarget.getAttribute('data-id');
-        window.db.updatePlanoAcaoStatus(planId, 'Concluído');
-        showToast('Plano de ação concluído com sucesso!', 'success');
-        openCollaboratorDetails(selectedCollabId);
-        refreshAllViews();
-      });
-    });
-  }
-
-  // Collab Evolution Line Chart
-  function renderCollabEvolutionChart(collabId) {
-    const canvas = document.getElementById('chart-collab-evolution');
-    if (!canvas) return;
-
-    const history = window.db.getEvolucaoHistoricoByColaborador(collabId);
-    const labels = history.map(h => h.mes);
-    const data = history.map(h => h.score);
-
-    if (collabEvolutionChartInstance) {
-      collabEvolutionChartInstance.destroy();
-    }
-
-    collabEvolutionChartInstance = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: labels.length > 0 ? labels : ['Sem dados'],
-        datasets: [{
-          label: 'Score Médio de Feedback',
-          data: data.length > 0 ? data : [0],
-          borderColor: '#6366f1',
-          backgroundColor: 'rgba(99, 102, 241, 0.1)',
-          tension: 0.3,
-          fill: true,
-          pointBackgroundColor: '#818cf8',
-          pointRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: {
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: '#94a3b8' },
-            min: 0,
-            max: 10
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: '#94a3b8' }
-          }
-        }
-      }
-    });
-  }
-
-  // View: Riscos
-  function renderRiscosView() {
-    const tbody = document.getElementById('risk-analysis-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    const colaboradores = window.db.getColaboradores();
-    colaboradores.forEach(c => {
-      const risk = window.riskEngine.calcularRisco(c.id);
-      
-      let badgeClass = 'badge-success';
-      if (risk.score >= 70) badgeClass = 'badge-danger';
-      else if (risk.score >= 40) badgeClass = 'badge-warning';
-
-      const flagsHtml = risk.flags.map(f => `<div style="font-size:11px; margin-bottom:4px; color:var(--text-secondary);"><i data-lucide="info" style="width:10px; height:10px; margin-right:4px; display:inline-block; vertical-align:middle;"></i>${f}</div>`).join('') || '<span style="color:var(--success);">Operando seguro e motivado</span>';
-
-      const tr = document.createElement('tr');
-      tr.className = 'tr-hover';
-      tr.innerHTML = `
-        <td>
-          <div class="collab-cell">
-            <img src="${c.foto}" alt="${c.nome}" class="collab-cell-img" style="width:32px; height:32px;">
-            <span>${c.nome}</span>
-          </div>
-        </td>
-        <td><span class="badge ${badgeClass}">${risk.nivel}</span></td>
-        <td><span class="risk-badge-number" style="font-size:13px; font-weight:700;">${risk.score}</span></td>
-        <td>${flagsHtml}</td>
-        <td>
-          <button class="btn btn-secondary btn-sm btn-view-mitigation" data-id="${c.id}">
-            Ver Mitigação
-          </button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    lucide.createIcons();
-
-    document.querySelectorAll('.btn-view-mitigation').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.getAttribute('data-id');
-        openRiskMitigation(id);
-      });
-    });
-  }
-
-  // Open risk mitigation guidelines panel
-  function openRiskMitigation(collabId) {
-    const container = document.getElementById('risk-mitigation-recommendations');
-    const risk = window.riskEngine.calcularRisco(collabId);
-    
-    if (!risk) return;
-
-    let levelClass = 'badge-success';
-    if (risk.score >= 70) levelClass = 'badge-danger';
-    else if (risk.score >= 40) levelClass = 'badge-warning';
-
-    const listHtml = risk.recomendacoes.map(r => `
-      <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:10px;">
-        <div style="font-weight:600; color:var(--primary); font-size:13px; margin-bottom:4px;"><i data-lucide="check-square" style="width:14px; height:14px; margin-right:6px; display:inline-block; vertical-align:middle;"></i>Ação Recomendada</div>
-        <div style="font-size:12px; color:var(--text-primary); line-height:1.4;">${r}</div>
-      </div>
-    `).join('');
-
-    container.innerHTML = `
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-        <img src="${risk.colaborador_foto}" alt="${risk.colaborador_nome}" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+  const discSection = disc ? `
+    <div class="disc-profile-card">
+      <div class="disc-profile-header">
+        <div class="disc-profile-icon">${DISC_PROFILES[disc.perfil_dominante].emoji}</div>
         <div>
-          <h4 style="font-family:var(--font-title); font-size:15px; font-weight:700;">${risk.colaborador_nome}</h4>
-          <span class="badge ${levelClass}" style="font-size:9px;">Risco ${risk.nivel} (${risk.score})</span>
+          <div style="font-size:1.1rem;font-weight:700">${disc.nome_perfil}</div>
+          <div style="font-size:0.8rem;color:#94a3b8">${disc.descricao}</div>
         </div>
       </div>
-      
-      <div style="margin-bottom:16px;">
-        <h5 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Gatilhos de Risco Ativos</h5>
-        ${risk.flags.map(f => `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;"><span style="color:var(--danger); margin-right:6px;">⚠️</span>${f}</div>`).join('') || '<div style="font-size:12px; color:var(--success);">Nenhum gatilho operacional crítico ativo.</div>'}
+      <div class="disc-bars-list">
+        ${Object.entries(disc.percentuais).map(([k,v]) => `
+          <div class="disc-bar-row">
+            <label><span>${DISC_PROFILES[k].emoji} ${DISC_PROFILES[k].nome}</span><span>${v}%</span></label>
+            <div class="bar"><div class="bar-fill bar-${k}" style="width:${v}%"></div></div>
+          </div>`).join('')}
       </div>
-
-      <div>
-        <h5 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">Diretrizes de Mitigação</h5>
-        ${listHtml}
+      <div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border-radius:8px;border:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#a78bfa;">
+        💡 <strong>Abordagem recomendada:</strong> ${disc.abordagem_feedback}
       </div>
-    `;
+    </div>
+  ` : `
+    <div class="disc-profile-card" style="text-align:center;padding:32px;">
+      <div style="font-size:2.5rem;margin-bottom:12px">🔍</div>
+      <div style="font-weight:600;margin-bottom:8px">Perfil DISC não avaliado</div>
+      <div style="color:#94a3b8;font-size:0.85rem;margin-bottom:16px">Realize a avaliação DISC para obter insights comportamentais detalhados.</div>
+      <button class="btn btn-primary btn-sm" onclick="openDiscColab('${c.id}')">Iniciar Avaliação DISC</button>
+    </div>
+  `;
 
-    lucide.createIcons();
-  }
-
-  // View: Manager Agenda
-  function renderAgendaView() {
-    const tbody = document.getElementById('agenda-list-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    const agendas = window.db.getAgendas().sort((a, b) => new Date(a.data) - new Date(b.data));
-    
-    agendas.forEach(a => {
-      const collab = window.db.getColaboradorById(a.colaborador_id);
-      if (collab) {
-        let badgeClass = 'badge-info';
-        if (a.status === 'Realizado') badgeClass = 'badge-success';
-        else if (a.status === 'Cancelado') badgeClass = 'badge-muted';
-
-        const tr = document.createElement('tr');
-        tr.className = 'tr-hover';
-        tr.innerHTML = `
-          <td>
-            <div class="collab-cell">
-              <img src="${collab.foto}" alt="${collab.nome}" class="collab-cell-img" style="width:32px; height:32px;">
-              <span>${collab.nome}</span>
+  const feedbackSection = fbs.length ? `
+    <div class="timeline">
+      ${fbs.slice(0,10).map(f => {
+        const avg = ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3).toFixed(1);
+        return `
+          <div class="timeline-item">
+            <div class="timeline-meta">${f.data}</div>
+            <div style="margin-bottom:6px;font-size:0.9rem"><strong>Pontos fortes:</strong> ${f.pontos_fortes || '—'}</div>
+            <div style="margin-bottom:8px;font-size:0.9rem"><strong>Melhorias:</strong> ${f.pontos_melhoria || '—'}</div>
+            <div class="timeline-scores">
+              <span class="score-chip">Performance: ${f.nota_performance}</span>
+              <span class="score-chip">Comportamento: ${f.nota_comportamento}</span>
+              <span class="score-chip">Compliance: ${f.nota_compliance}</span>
+              <span class="score-chip">Média: ${avg}</span>
             </div>
-          </td>
-          <td>${formatDate(a.data)}</td>
-          <td>${a.hora}</td>
-          <td>${a.tipo}</td>
-          <td><span class="badge ${badgeClass}">${a.status}</span></td>
-          <td>
-            ${a.status === 'Agendado' ? `
-              <div style="display:flex; gap:6px;">
-                <button class="btn btn-primary btn-sm btn-realize-session" data-id="${a.id}">
-                  Realizado
-                </button>
-                <button class="btn btn-secondary btn-sm btn-cancel-session" data-id="${a.id}">
-                  Cancelar
-                </button>
+          </div>`;
+      }).join('')}
+    </div>
+  ` : '<div class="empty-state" style="min-height:120px"><div class="empty-icon">💬</div><p>Nenhum feedback registrado ainda.</p></div>';
+
+  const planosSection = planos.length ? `
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${planos.map(p => `
+        <div class="timeline-item">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-weight:600">${p.titulo}</div>
+              <div style="font-size:0.8rem;color:#94a3b8;margin-top:4px">${p.objetivo}</div>
+              <div style="font-size:0.78rem;color:#64748b;margin-top:6px">Prazo: ${p.prazo} · Responsável: ${p.responsavel}</div>
+            </div>
+            <span class="badge ${p.status === 'Concluído' ? 'badge-green' : 'badge-yellow'}">${p.status}</span>
+          </div>
+          ${p.status !== 'Concluído' ? `<button class="btn btn-sm btn-secondary" style="margin-top:10px" onclick="concluirPlano('${p.id}')">✅ Marcar Concluído</button>` : ''}
+        </div>`).join('')}
+    </div>
+  ` : '<div class="empty-state" style="min-height:100px"><p>Nenhum plano de ação criado.</p></div>';
+
+  const agendasSection = agendas.length ? `
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${agendas.map(a => `
+        <div class="timeline-item" style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:600">${a.tipo}</div>
+            <div style="font-size:0.82rem;color:#94a3b8;margin-top:4px">${a.data_hora}</div>
+            ${a.observacoes ? `<div style="font-size:0.8rem;color:#64748b;margin-top:4px">${a.observacoes}</div>` : ''}
+          </div>
+          <span class="badge ${a.status === 'Realizado' ? 'badge-green' : 'badge-blue'}">${a.status}</span>
+        </div>`).join('')}
+    </div>
+  ` : '<div class="empty-state" style="min-height:100px"><p>Nenhuma sessão agendada.</p></div>';
+
+  document.getElementById('perfil-colab-content').innerHTML = `
+    <div class="profile-hero">
+      <img src="${c.foto}" class="profile-avatar" alt="${c.nome}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.nome)}&background=7c3aed&color=fff&size=128'">
+      <div class="profile-meta" style="flex:1">
+        <h2>${c.nome}</h2>
+        <div style="color:#94a3b8;font-size:0.9rem">${c.cargo} · ${c.setor}</div>
+        <div class="profile-meta-row">
+          <span class="badge badge-green">${c.status}</span>
+          <span class="badge badge-purple">Score: ${avg}</span>
+          ${risk !== null ? `<span class="badge ${riskBadgeCls(risk)}">${riskText}</span>` : ''}
+          ${disc ? `<span class="badge disc-${disc.perfil_dominante}">${DISC_PROFILES[disc.perfil_dominante].emoji} ${disc.nome_perfil}</span>` : ''}
+        </div>
+        ${risk !== null ? `
+          <div class="risk-bar-wrap" style="margin-top:14px;max-width:320px">
+            <span style="font-size:0.78rem;color:#94a3b8;width:80px">Risco</span>
+            <div class="risk-bar"><div class="risk-fill ${riskCls}" style="width:${risk}%"></div></div>
+            <span style="font-size:0.8rem;color:#94a3b8">${risk}%</span>
+          </div>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+        <button class="btn btn-primary btn-sm" onclick="openFeedbackForColab('${c.id}')">+ Feedback</button>
+        <button class="btn btn-secondary btn-sm" onclick="openDiscColab('${c.id}')">🔍 DISC</button>
+        <button class="btn btn-secondary btn-sm" onclick="openPlanoForColab('${c.id}')">📋 Plano</button>
+        <button class="btn btn-secondary btn-sm" onclick="openAgendaForColab('${c.id}')">📅 Agendar</button>
+      </div>
+    </div>
+
+    <div class="grid-2" style="gap:20px;margin-bottom:24px;">
+      <div>
+        <div class="card-title" style="margin-bottom:12px;">🧠 Perfil DISC</div>
+        ${discSection}
+      </div>
+      <div>
+        <div class="card-title" style="margin-bottom:12px;">📅 Agendamentos</div>
+        ${agendasSection}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div class="card-title">💬 Histórico de Feedbacks</div>
+        <button class="btn btn-primary btn-sm" onclick="openFeedbackForColab('${c.id}')">+ Novo</button>
+      </div>
+      ${feedbackSection}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Planos de Ação</div>
+        <button class="btn btn-primary btn-sm" onclick="openPlanoForColab('${c.id}')">+ Novo</button>
+      </div>
+      ${planosSection}
+    </div>
+  `;
+}
+
+// ─── FEEDBACKS ────────────────────────────────────────────────────────────────
+function renderFeedbacks() {
+  const fbs = db.getFeedbacks().slice().reverse();
+  const listEl = document.getElementById('feedbacks-list');
+  const emptyEl = document.getElementById('feedbacks-empty');
+
+  if (fbs.length === 0) {
+    emptyEl.style.display = 'flex';
+    listEl.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  listEl.innerHTML = fbs.map(f => {
+    const colab = db.getColaboradorById(f.colaborador_id);
+    const avg = ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3).toFixed(1);
+    return `
+      <div class="timeline-item">
+        <div class="timeline-meta">${colab?.nome || '—'} · ${colab?.cargo || ''} · ${f.data}</div>
+        <div style="margin-bottom:6px;font-size:0.9rem"><strong>Fortes:</strong> ${f.pontos_fortes || '—'}</div>
+        <div style="margin-bottom:8px;font-size:0.9rem"><strong>Melhoria:</strong> ${f.pontos_melhoria || '—'}</div>
+        <div class="timeline-scores">
+          <span class="score-chip">Performance: ${f.nota_performance}</span>
+          <span class="score-chip">Comportamento: ${f.nota_comportamento}</span>
+          <span class="score-chip">Compliance: ${f.nota_compliance}</span>
+          <span class="score-chip">Média: ${avg}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── RISCO ────────────────────────────────────────────────────────────────────
+function renderRisco() {
+  const colabs = db.getColaboradores();
+  const emptyEl = document.getElementById('risco-empty');
+  const content = document.getElementById('risco-content');
+
+  if (colabs.length === 0) {
+    emptyEl.style.display = 'flex';
+    content.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  const data = colabs.map(c => {
+    const fbs = db.getFeedbacksByColaborador(c.id);
+    const avg = fbs.length
+      ? (fbs.reduce((s,f) => s + ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3),0)/fbs.length)
+      : null;
+    const risk = avg !== null ? Math.round(100 - (avg * 10)) : null;
+    return { c, avg, risk, fbs };
+  }).sort((a,b) => (b.risk||0) - (a.risk||0));
+
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:16px">Análise de Risco Operacional por Colaborador</div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        ${data.map(({c, avg, risk, fbs}) => {
+          if (risk === null) return `
+            <div style="display:flex;align-items:center;gap:16px;padding:14px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+              <img src="${c.foto}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.nome)}&background=7c3aed&color=fff&size=80'">
+              <div style="flex:1">
+                <div style="font-weight:600;font-size:0.9rem">${c.nome}</div>
+                <div style="font-size:0.78rem;color:#64748b">${c.cargo}</div>
               </div>
-            ` : '—'}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      }
-    });
+              <span class="badge badge-blue">Sem dados</span>
+            </div>`;
+          const cls = risk >= 60 ? 'risk-high' : risk >= 35 ? 'risk-medium' : 'risk-low';
+          const label = risk >= 60 ? '🔴 Alto' : risk >= 35 ? '🟡 Médio' : '🟢 Baixo';
+          return `
+            <div style="padding:14px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.06);" onclick="openPerfilColab('${c.id}')" style="cursor:pointer;">
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;cursor:pointer" onclick="openPerfilColab('${c.id}')">
+                <img src="${c.foto}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.nome)}&background=7c3aed&color=fff&size=80'">
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:0.9rem">${c.nome}</div>
+                  <div style="font-size:0.78rem;color:#64748b">${c.cargo} · ${fbs.length} feedback${fbs.length!==1?'s':''}</div>
+                </div>
+                <div style="text-align:right">
+                  <span class="badge ${riskBadgeCls(risk)}" style="margin-bottom:4px">${label}</span>
+                  <div style="font-size:0.78rem;color:#94a3b8">Score: ${avg?.toFixed(1) || '—'}</div>
+                </div>
+              </div>
+              <div class="risk-bar-wrap">
+                <div class="risk-bar"><div class="risk-fill ${cls}" style="width:${risk}%"></div></div>
+                <span style="font-size:0.78rem;color:#94a3b8;width:40px;text-align:right">${risk}%</span>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
 
-    document.querySelectorAll('.btn-realize-session').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.getAttribute('data-id');
-        window.db.updateAgendaStatus(id, 'Realizado');
-        
-        const session = window.db.getAgendas().find(a => a.id === id);
-        showToast('Sessão marcada como realizada!', 'success');
-        refreshAllViews();
-        
-        if (session) {
-          openFeedbackModal(session.colaborador_id);
-        }
-      });
-    });
+// ─── PLANOS DE AÇÃO ───────────────────────────────────────────────────────────
+function renderPlanos() {
+  const planos = db.getPlanosAcao().slice().reverse();
+  const emptyEl = document.getElementById('planos-empty');
+  const listEl  = document.getElementById('planos-list');
 
-    document.querySelectorAll('.btn-cancel-session').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const id = e.currentTarget.getAttribute('data-id');
-        window.db.updateAgendaStatus(id, 'Cancelado');
-        showToast('Sessão cancelada.', 'muted');
-        refreshAllViews();
-      });
-    });
+  if (planos.length === 0) {
+    emptyEl.style.display = 'flex';
+    listEl.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  listEl.innerHTML = `<div class="card"><div style="display:flex;flex-direction:column;gap:12px;">
+    ${planos.map(p => {
+      const c = db.getColaboradorById(p.colaborador_id);
+      return `
+        <div class="timeline-item">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-weight:600">${p.titulo}</div>
+              <div style="font-size:0.8rem;color:#94a3b8;margin-top:4px">${c?.nome || '—'} · Prazo: ${p.prazo}</div>
+              <div style="font-size:0.82rem;color:#64748b;margin-top:4px">${p.objetivo}</div>
+            </div>
+            <span class="badge ${p.status === 'Concluído' ? 'badge-green' : 'badge-yellow'}">${p.status}</span>
+          </div>
+          ${p.status !== 'Concluído' ? `<button class="btn btn-sm btn-secondary" style="margin-top:10px" onclick="concluirPlano('${p.id}')">✅ Concluir</button>` : ''}
+        </div>`;
+    }).join('')}
+  </div></div>`;
+}
+
+// ─── AGENDA ───────────────────────────────────────────────────────────────────
+function renderAgenda() {
+  const agendas = db.getAgendas().slice().reverse();
+  const emptyEl = document.getElementById('agenda-empty');
+  const listEl  = document.getElementById('agenda-list');
+
+  if (agendas.length === 0) {
+    emptyEl.style.display = 'flex';
+    listEl.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  listEl.innerHTML = `<div class="card"><div style="display:flex;flex-direction:column;gap:12px;">
+    ${agendas.map(a => {
+      const c = db.getColaboradorById(a.colaborador_id);
+      return `
+        <div class="timeline-item" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-weight:600">${a.tipo}</div>
+            <div style="font-size:0.8rem;color:#94a3b8;margin-top:4px">${c?.nome || '—'} · ${a.data_hora}</div>
+            ${a.observacoes ? `<div style="font-size:0.8rem;color:#64748b;margin-top:4px">${a.observacoes}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <span class="badge ${a.status === 'Realizado' ? 'badge-green' : 'badge-blue'}">${a.status}</span>
+            ${a.status !== 'Realizado' ? `<button class="btn btn-sm btn-secondary" onclick="concluirAgenda('${a.id}')">✅ Realizado</button>` : ''}
+          </div>
+        </div>`;
+    }).join('')}
+  </div></div>`;
+}
+
+// ─── MEU PERFIL ───────────────────────────────────────────────────────────────
+function renderMeuPerfil() {
+  const gestor = db.getGestor();
+  if (!gestor) return;
+  const disc = gestor.disc;
+  const profile = disc ? DISC_PROFILES[disc.perfil_dominante] : null;
+
+  document.getElementById('meu-perfil-content').innerHTML = `
+    <div class="profile-hero" style="margin-bottom:24px;">
+      <img src="${gestor.foto}" class="profile-avatar" alt="${gestor.nome}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(gestor.nome)}&background=7c3aed&color=fff&size=128'">
+      <div class="profile-meta">
+        <h2>${gestor.nome}</h2>
+        <div style="color:#94a3b8;font-size:0.9rem;margin-bottom:8px">${gestor.cargo} · ${gestor.empresa}</div>
+        <div style="color:#64748b;font-size:0.82rem;">${gestor.email}</div>
+        ${disc ? `
+        <div class="profile-meta-row" style="margin-top:12px;">
+          <span class="badge" style="background:${profile.cor}22;color:${profile.cor};border-color:${profile.cor}55;">
+            ${profile.emoji} Perfil ${profile.nome}
+          </span>
+        </div>` : ''}
+      </div>
+    </div>
+
+    ${disc ? `
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title" style="margin-bottom:16px">🧠 Seu Perfil Comportamental DISC</div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+        <div style="text-align:center;padding:20px;background:${profile.cor}11;border-radius:14px;border:1px solid ${profile.cor}33;flex-shrink:0;min-width:140px;">
+          <div style="font-size:3rem;margin-bottom:8px;">${profile.emoji}</div>
+          <div style="font-size:1.2rem;font-weight:800;color:${profile.cor}">${profile.nome}</div>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Perfil Dominante</div>
+        </div>
+        <div style="flex:1;min-width:220px;">
+          <p style="color:#94a3b8;font-size:0.9rem;line-height:1.6;margin-bottom:16px;">${profile.descricao}</p>
+          <div class="disc-bars-list">
+            ${Object.entries(disc.percentuais).map(([k,v]) => `
+              <div class="disc-bar-row">
+                <label><span>${DISC_PROFILES[k].emoji} ${DISC_PROFILES[k].nome}</span><span>${v}%</span></label>
+                <div class="bar"><div class="bar-fill bar-${k}" style="width:${v}%"></div></div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;">
+        <div>
+          <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Pontos Fortes</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${profile.pontos_fortes.map(p => `<span class="badge badge-green">${p}</span>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.8rem;font-weight:600;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Pontos de Atenção</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${profile.pontos_atencao.map(p => `<span class="badge badge-yellow">${p}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border-radius:8px;border:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#a78bfa;">
+        💡 <strong>Seu estilo de liderança:</strong> ${profile.abordagem_feedback}
+      </div>
+    </div>` : '<div class="card" style="text-align:center;padding:32px;"><p style="color:#94a3b8">Perfil DISC não disponível.</p></div>'}
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px;">⚙️ Informações do Sistema</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:0.88rem;color:#94a3b8;">
+        <div>Colaboradores cadastrados: <strong style="color:#f1f5f9">${db.getColaboradores().length}</strong></div>
+        <div>Feedbacks registrados: <strong style="color:#f1f5f9">${db.getFeedbacks().length}</strong></div>
+        <div>Planos de ação: <strong style="color:#f1f5f9">${db.getPlanosAcao().length}</strong></div>
+        <div>Conta criada em: <strong style="color:#f1f5f9">${gestor.created_at?.split('T')[0] || '—'}</strong></div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.08);">
+        <button class="btn btn-danger btn-sm" onclick="resetApp()">🗑️ Redefinir todos os dados</button>
+      </div>
+    </div>
+  `;
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// Add collaborator
+function openAddColaborador() {
+  ['form-colab-nome','form-colab-cargo','form-colab-setor','form-colab-email','form-colab-telefone'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  openModal('modal-add-colab');
+}
+
+function submitAddColaborador() {
+  const nome     = document.getElementById('form-colab-nome').value.trim();
+  const cargo    = document.getElementById('form-colab-cargo').value.trim();
+  const setor    = document.getElementById('form-colab-setor').value.trim();
+  const email    = document.getElementById('form-colab-email').value.trim();
+  const telefone = document.getElementById('form-colab-telefone').value.trim();
+
+  if (!nome || !cargo || !setor) {
+    showToast('Preencha nome, cargo e setor.', 'error');
+    return;
   }
 
-  // --- COLLABORATOR PORTAL VIEWS ---
+  db.addColaborador({
+    nome, cargo, setor, email, telefone,
+    foto: `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=7c3aed&color=fff&size=128`
+  });
+  closeModal('modal-add-colab');
+  showToast(`${nome} adicionado(a) com sucesso!`, 'success');
+  renderView(currentView);
+}
 
-  function renderCollaboratorPortalView() {
-    const collab = window.db.getColaboradorById(activeCollabPortalId);
-    if (!collab) return;
+// Feedback
+function openFeedbackForColab(id) {
+  currentColabId = id;
+  const colabs = db.getColaboradores();
+  const sel = document.getElementById('form-fb-colab');
+  sel.innerHTML = colabs.map(c => `<option value="${c.id}" ${c.id === id ? 'selected' : ''}>${c.nome}</option>`).join('');
+  document.getElementById('form-fb-data').value = new Date().toISOString().split('T')[0];
+  ['form-fb-perf','form-fb-comp','form-fb-compl','form-fb-pontos-fortes','form-fb-pontos-melhoria'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  openModal('modal-add-feedback');
+}
 
-    const disc = window.db.getDiscResultByColaborador(activeCollabPortalId);
-    const feedbacks = window.db.getFeedbacksByColaborador(activeCollabPortalId);
-    const planos = window.db.getPlanosAcaoByColaborador(activeCollabPortalId);
-    const autoavaliacoes = window.db.getAutoavaliacoesByColaborador(activeCollabPortalId);
+function submitFeedback() {
+  const colaborador_id   = document.getElementById('form-fb-colab').value;
+  const nota_performance = document.getElementById('form-fb-perf').value;
+  const nota_comportamento = document.getElementById('form-fb-comp').value;
+  const nota_compliance  = document.getElementById('form-fb-compl').value;
+  const pontos_fortes    = document.getElementById('form-fb-pontos-fortes').value.trim();
+  const pontos_melhoria  = document.getElementById('form-fb-pontos-melhoria').value.trim();
+  const data             = document.getElementById('form-fb-data').value;
 
-    document.getElementById('portal-user-avatar').src = collab.foto;
-    document.getElementById('portal-user-name').textContent = collab.nome;
-    document.getElementById('portal-user-cargo').textContent = collab.cargo;
+  if (!nota_performance || !nota_comportamento || !nota_compliance) {
+    showToast('Preencha todas as notas.', 'error');
+    return;
+  }
 
-    const discBadge = document.getElementById('portal-disc-badge');
-    if (disc) {
-      discBadge.textContent = `Perfil: ${disc.perfil}`;
-      discBadge.className = 'badge badge-info';
-    } else {
-      discBadge.textContent = `DISC: Não Mapeado`;
-      discBadge.className = 'badge badge-muted';
-    }
+  db.addFeedback({ colaborador_id, nota_performance, nota_comportamento, nota_compliance, pontos_fortes, pontos_melhoria, data });
+  closeModal('modal-add-feedback');
+  showToast('Feedback registrado com sucesso!', 'success');
+  renderView(currentView);
+}
 
-    let avgScoreVal = '—';
-    let complianceVal = '—';
-    if (feedbacks.length > 0) {
-      avgScoreVal = ((feedbacks[0].nota_performance + feedbacks[0].nota_comportamento + feedbacks[0].nota_compliance) / 3).toFixed(1);
-      complianceVal = feedbacks[0].nota_compliance.toFixed(1);
-    }
-    document.getElementById('portal-kpi-perf').textContent = avgScoreVal;
-    
-    const motivEl = document.getElementById('portal-kpi-motivacao');
-    const motivTrend = document.getElementById('portal-kpi-motivacao-trend');
-    if (autoavaliacoes.length > 0) {
-      const latestAuto = autoavaliacoes[0];
-      motivEl.textContent = `${latestAuto.motivacao}/10`;
-      motivTrend.textContent = `Reportado em ${formatDate(latestAuto.data)}`;
-    } else {
-      motivEl.textContent = 'Sem dados';
-      motivTrend.textContent = 'Preencha a autoavaliação';
-    }
+// DISC collaborator
+function openDiscColab(id) {
+  currentColabId = id;
+  const engine = new DISCEngine(DISC_COLABORADOR_QUESTIONS);
+  let qIndex = 0;
 
-    const activePlansCount = planos.filter(p => p.status === 'Em Andamento').length;
-    document.getElementById('portal-kpi-planos').textContent = activePlansCount;
-    document.getElementById('portal-kpi-planos-trend').textContent = `${planos.length} total criados`;
+  function renderQ() {
+    const q = DISC_COLABORADOR_QUESTIONS[qIndex];
+    const total = DISC_COLABORADOR_QUESTIONS.length;
+    const pct = Math.round(((qIndex + 1) / total) * 100);
+    const letters = ['A','B','C','D'];
 
-    document.getElementById('portal-kpi-conformidade').textContent = complianceVal;
-    const conforCard = document.getElementById('portal-kpi-confor-card');
-    if (complianceVal !== '—') {
-      const complianceNum = parseFloat(complianceVal);
-      if (complianceNum >= 9.0) conforCard.className = 'kpi-card performance';
-      else if (complianceNum >= 7.5) conforCard.className = 'kpi-card engajamento';
-      else conforCard.className = 'kpi-card risco';
-    } else {
-      conforCard.className = 'kpi-card performance';
-    }
-
-    const plansTbody = document.getElementById('portal-action-plans-tbody');
-    plansTbody.innerHTML = '';
-    
-    if (planos.length > 0) {
-      planos.forEach(p => {
-        let badgeClass = 'badge-warning';
-        if (p.status === 'Concluído') badgeClass = 'badge-success';
-        else if (new Date(p.prazo) < new Date() && p.status === 'Em Andamento') badgeClass = 'badge-danger';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>
-            <strong>${p.titulo}</strong>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${p.descricao}</div>
-          </td>
-          <td>${p.metas}</td>
-          <td>${formatDate(p.prazo)}</td>
-          <td><span class="badge ${badgeClass}">${p.status}</span></td>
-          <td>
-            ${p.status === 'Em Andamento' ? `
-              <button class="btn btn-primary btn-sm btn-complete-plan-portal" data-id="${p.id}">
-                Marcar Concluído
-              </button>
-            ` : '—'}
-          </td>
-        `;
-        plansTbody.appendChild(tr);
-      });
-    } else {
-      plansTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px 0;">Nenhum plano de ação ativo no momento.</td></tr>`;
-    }
-
-    document.querySelectorAll('.btn-complete-plan-portal').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const planId = e.currentTarget.getAttribute('data-id');
-        window.db.updatePlanoAcaoStatus(planId, 'Concluído');
-        showToast('Plano de ação enviado para validação!', 'success');
-        refreshAllViews();
-      });
-    });
-
-    const discStatusContent = document.getElementById('portal-disc-status-content');
-    if (disc) {
-      discStatusContent.innerHTML = `
-        <div style="text-align:left; background:rgba(255,255,255,0.01); border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:12px;">
-          <h4 style="font-family:var(--font-title); font-size:14px; font-weight:700; color:var(--accent); margin-bottom:6px;">Perfil: ${disc.perfil}</h4>
-          <p style="font-size:12px; color:var(--text-secondary); line-height:1.4;">Seu perfil comportamental é registrado no sistema para ajudar nas tomadas de decisão e na forma de condução de mentorias com o seu gestor.</p>
-        </div>
-        <button class="btn btn-secondary btn-sm" id="btn-portal-retest">
-          <i data-lucide="refresh-cw"></i>Refazer Mapeamento DISC
+    document.getElementById('modal-disc-content').innerHTML = `
+      <div class="disc-question-counter">Pergunta ${qIndex+1} de ${total}</div>
+      <div class="disc-progress-bar"><div class="disc-progress-fill" style="width:${pct}%"></div></div>
+      <div class="disc-question-text">${q.pergunta}</div>
+      <div class="disc-options" id="disc-colab-opts">
+        ${q.opcoes.map((op, i) => `
+          <div class="disc-option ${engine.respostas[q.id] === op.tipo ? 'selected' : ''}" onclick="discColabSelect(this,'${q.id}','${op.tipo}')">
+            <div class="disc-option-letter">${letters[i]}</div>
+            <span>${op.texto}</span>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        ${qIndex > 0 ? `<button class="btn btn-secondary btn-sm" onclick="discColabPrev()">← Anterior</button>` : ''}
+        <button class="btn btn-primary btn-sm" id="disc-colab-next" onclick="discColabNext()" ${!engine.respostas[q.id] ? 'disabled' : ''}>
+          ${qIndex === total-1 ? 'Ver Resultado →' : 'Próxima →'}
         </button>
-      `;
-      document.getElementById('btn-portal-retest').addEventListener('click', () => {
-        openDiscTestModal(activeCollabPortalId);
-      });
-    } else {
-      discStatusContent.innerHTML = `
-        <div style="padding:16px 0;">
-          <i data-lucide="brain" style="font-size:32px; color:var(--accent); margin-bottom:8px; display:inline-block;"></i>
-          <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Você ainda não mapeou seu perfil comportamental. Responda o questionário DISC do AeroPulse para entender melhor suas forças operacionais.</p>
-          <button class="btn btn-primary btn-sm" id="btn-portal-start-disc" style="width:100%;">
-            <i data-lucide="sparkles"></i>Mapear Meu Perfil (10 Questões)
-          </button>
-        </div>
-      `;
-      document.getElementById('btn-portal-start-disc').addEventListener('click', () => {
-        openDiscTestModal(activeCollabPortalId);
-      });
-    }
-
-    const feedsTbody = document.getElementById('portal-feedbacks-tbody');
-    feedsTbody.innerHTML = '';
-    
-    if (feedbacks.length > 0) {
-      feedbacks.forEach(f => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatDate(f.data)}</td>
-          <td><span class="badge badge-muted">${f.nota_performance}</span></td>
-          <td><span class="badge badge-muted">${f.nota_comportamento}</span></td>
-          <td><span class="badge badge-muted">${f.nota_compliance}</span></td>
-          <td style="max-width: 300px; white-space: normal; line-height: 1.4;">${f.observacoes}</td>
-        `;
-        feedsTbody.appendChild(tr);
-      });
-    } else {
-      feedsTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px 0;">Nenhum feedback registrado ainda.</td></tr>`;
-    }
-
-    renderPortalEvolutionChart(activeCollabPortalId);
-    
-    lucide.createIcons();
-  }
-
-  // Collaborator Portal Line Chart
-  function renderPortalEvolutionChart(collabId) {
-    const canvas = document.getElementById('chart-portal-evolution');
-    if (!canvas) return;
-
-    const history = window.db.getEvolucaoHistoricoByColaborador(collabId);
-    const labels = history.map(h => h.mes);
-    const data = history.map(h => h.score);
-
-    if (portalEvolutionChartInstance) {
-      portalEvolutionChartInstance.destroy();
-    }
-
-    portalEvolutionChartInstance = new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: labels.length > 0 ? labels : ['Sem dados'],
-        datasets: [{
-          label: 'Evolução de Scores',
-          data: data.length > 0 ? data : [0],
-          borderColor: '#a855f7',
-          backgroundColor: 'rgba(168, 85, 247, 0.1)',
-          tension: 0.3,
-          fill: true,
-          pointBackgroundColor: '#c084fc',
-          pointRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: {
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: '#94a3b8' },
-            min: 0,
-            max: 10
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: '#94a3b8' }
-          }
-        }
-      }
-    });
-  }
-
-  // View: Collaborator Portal Agenda
-  function renderCollaboratorAgendaView() {
-    const tbody = document.getElementById('portal-agenda-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    const agendas = window.db.getAgendasByColaborador(activeCollabPortalId).sort((a, b) => new Date(a.data) - new Date(b.data));
-    
-    if (agendas.length > 0) {
-      agendas.forEach(a => {
-        const manager = window.db.getGestores()[0];
-        let badgeClass = 'badge-info';
-        if (a.status === 'Realizado') badgeClass = 'badge-success';
-        else if (a.status === 'Cancelado') badgeClass = 'badge-muted';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatDate(a.data)}</td>
-          <td>${a.hora}</td>
-          <td><strong>${a.tipo}</strong></td>
-          <td>${manager.nome}</td>
-          <td><span class="badge ${badgeClass}">${a.status}</span></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } else {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px 0;">Nenhuma sessão de acompanhamento agendada.</td></tr>`;
-    }
-  }
-
-
-  // --- SETUP EVENT LISTENERS & ROUTING ---
-
-  function setupEventListeners() {
-    
-    document.querySelectorAll('.nav-link').forEach(link => {
-      link.addEventListener('click', (e) => {
-        const viewName = e.currentTarget.getAttribute('data-view');
-        
-        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        e.currentTarget.classList.add('active');
-        
-        document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-        document.getElementById(`view-${viewName}`).classList.add('active');
-        
-        let headerTitle = 'Dashboard Operacional';
-        if (viewName === 'colaboradores') headerTitle = 'Gestão de Colaboradores';
-        else if (viewName === 'riscos') headerTitle = 'Gestão de Risco & Mitigação';
-        else if (viewName === 'agenda') headerTitle = 'Agenda de Follow-up';
-        else if (viewName === 'colaborador-portal') headerTitle = 'Meu Portal de Performance';
-        else if (viewName === 'colaborador-agenda') headerTitle = 'Minhas Sessões Agendadas';
-        
-        document.getElementById('current-view-title').textContent = headerTitle;
-      });
-    });
-
-    document.getElementById('toggle-manager').addEventListener('click', (e) => {
-      if (currentRole === 'manager') return;
-      currentRole = 'manager';
-      
-      document.getElementById('toggle-manager').classList.add('active');
-      document.getElementById('toggle-collab').classList.remove('active');
-      
-      refreshAllViews();
-      
-      const dashLink = document.querySelector('[data-view="dashboard"]');
-      if (dashLink) dashLink.click();
-    });
-
-    document.getElementById('toggle-collab').addEventListener('click', (e) => {
-      if (currentRole === 'collaborator') return;
-      
-      const collaborators = window.db.getColaboradores();
-      
-      let promptText = "Selecione o colaborador que deseja simular:\n\n";
-      collaborators.forEach((c, idx) => {
-        promptText += `${idx + 1}. ${c.nome} (${c.cargo})\n`;
-      });
-      
-      const choice = prompt(promptText, "1");
-      if (choice === null) return;
-      
-      const choiceIdx = parseInt(choice) - 1;
-      if (isNaN(choiceIdx) || choiceIdx < 0 || choiceIdx >= collaborators.length) {
-        alert("Opção inválida!");
-        return;
-      }
-      
-      activeCollabPortalId = collaborators[choiceIdx].id;
-      currentRole = 'collaborator';
-      
-      document.getElementById('toggle-manager').classList.remove('active');
-      document.getElementById('toggle-collab').classList.add('active');
-      
-      refreshAllViews();
-      
-      const portalLink = document.querySelector('[data-view="colaborador-portal"]');
-      if (portalLink) portalLink.click();
-    });
-
-    document.getElementById('btn-reset-db').addEventListener('click', () => {
-      if (confirm('Deseja realmente redefinir o banco de dados e carregar os dados de demonstração da Aviação? Todos os seus feedbacks e cadastros locais serão limpos.')) {
-        window.db.reset();
-        selectedCollabId = null;
-        document.getElementById('collab-detail-panel').style.display = 'none';
-        refreshAllViews();
-        showToast('Banco de dados redefinido para o padrão com sucesso!', 'success');
-      }
-    });
-
-    document.getElementById('btn-schedule-shortcut').addEventListener('click', () => {
-      openScheduleModal();
-    });
-    
-    document.getElementById('btn-feedback-shortcut').addEventListener('click', () => {
-      const collab = window.db.getColaboradores()[0];
-      if (collab) openFeedbackModal(collab.id);
-    });
-
-    document.querySelectorAll('.modal-close, .modal-cancel, #btn-close-qr-modal').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const overlay = e.currentTarget.closest('.modal-overlay');
-        if (overlay) overlay.classList.remove('active');
-      });
-    });
-
-    document.getElementById('btn-close-detail').addEventListener('click', () => {
-      document.getElementById('collab-detail-panel').style.display = 'none';
-      selectedCollabId = null;
-    });
-
-    document.getElementById('form-add-collab').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const nome = document.getElementById('collab-nome').value;
-      const email = document.getElementById('collab-email').value;
-      const cargo = document.getElementById('collab-cargo').value;
-      const foto = document.getElementById('collab-foto').value || null;
-
-      const newCollab = window.db.addColaborador({ nome, email, cargo, foto });
-      showToast(`${newCollab.nome} foi cadastrado com sucesso!`, 'success');
-      
-      document.getElementById('modal-add-collab').classList.remove('active');
-      document.getElementById('form-add-collab').reset();
-      refreshAllViews();
-    });
-
-    document.getElementById('btn-add-collab').addEventListener('click', () => {
-      openModal('modal-add-collab');
-    });
-
-    document.getElementById('form-add-feedback').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const collabId = document.getElementById('feedback-collab-id').value;
-      const perf = parseFloat(document.getElementById('feed-nota-perf').value);
-      const comp = parseFloat(document.getElementById('feed-nota-comp').value);
-      const compliance = parseFloat(document.getElementById('feed-nota-compliance').value);
-      
-      const p_comunicacao = parseInt(document.getElementById('feed-p-comunicacao').value);
-      const p_conformidade = parseInt(document.getElementById('feed-p-conformidade').value);
-      const p_resolucao = parseInt(document.getElementById('feed-p-resolucao').value);
-      const p_empatia = parseInt(document.getElementById('feed-p-empatia').value);
-
-      const obs = document.getElementById('feed-obs').value;
-      const isAiAssisted = document.getElementById('ai-text-result-container').style.display === 'block';
-
-      const feedback = {
-        colaborador_id: collabId,
-        gestor_id: 'g1',
-        nota_performance: perf,
-        nota_comportamento: comp,
-        nota_compliance: compliance,
-        observacoes: obs,
-        pilares: {
-          comunicacao: p_comunicacao,
-          conformidade: p_conformidade,
-          resolucao_problemas: p_resolucao,
-          empatia: p_empatia
-        },
-        ia_sugerido: isAiAssisted
-      };
-
-      window.db.addFeedback(feedback);
-      showToast('Feedback registrado com sucesso!', 'success');
-      document.getElementById('modal-add-feedback').classList.remove('active');
-      refreshAllViews();
-      if (selectedCollabId === collabId) {
-        openCollaboratorDetails(collabId);
-      }
-    });
-
-    document.getElementById('btn-generate-ai-text').addEventListener('click', () => {
-      const collabId = document.getElementById('feedback-collab-id').value;
-      const area = document.getElementById('ai-feed-area').value;
-      const tom = document.getElementById('ai-feed-tom').value;
-
-      const aiRes = window.aiCopilot.sugerirAbordagemFeedback(collabId, area, tom);
-      if (aiRes) {
-        document.getElementById('ai-strategic-approach').innerHTML = `<strong>Abordagem DISC Ideal (${aiRes.perfil}):</strong><br>${aiRes.abordagem_estrategica}`;
-        document.getElementById('ai-text-suggestion').textContent = aiRes.texto_sugerido;
-        
-        const dicasUl = document.getElementById('ai-dicas-list');
-        dicasUl.innerHTML = '';
-        aiRes.dicas_entrega.forEach(d => {
-          const li = document.createElement('li');
-          li.textContent = d;
-          dicasUl.appendChild(li);
-        });
-
-        document.getElementById('ai-text-result-container').style.display = 'block';
-      }
-    });
-
-    document.getElementById('btn-copy-ai-text').addEventListener('click', () => {
-      const text = document.getElementById('ai-text-suggestion').textContent;
-      document.getElementById('feed-obs').value = text;
-      showToast('Abordagem da IA copiada para as observações!', 'info');
-    });
-
-    document.getElementById('btn-create-action-plan').addEventListener('click', () => {
-      if (selectedCollabId) {
-        document.getElementById('action-plan-collab-id').value = selectedCollabId;
-        
-        const feedbacks = window.db.getFeedbacksByColaborador(selectedCollabId);
-        let lowestPillar = 'comunicacao';
-        if (feedbacks.length > 0) {
-          const p = feedbacks[0].pilares;
-          const minVal = Math.min(p.comunicacao, p.conformidade, p.resolucao_problemas, p.empatia);
-          if (p.conformidade === minVal) lowestPillar = 'conformidade';
-          else if (p.resolucao_problemas === minVal) lowestPillar = 'resolucao_problemas';
-          else if (p.empatia === minVal) lowestPillar = 'empatia';
-        }
-        document.getElementById('ai-plan-pilar').value = lowestPillar;
-        
-        openModal('modal-action-plan');
-      }
-    });
-
-    document.getElementById('btn-generate-ai-plan').addEventListener('click', () => {
-      const collabId = document.getElementById('action-plan-collab-id').value;
-      const pilar = document.getElementById('ai-plan-pilar').value;
-
-      const planSug = window.aiCopilot.sugerirPlanoAcao(collabId, pilar);
-      if (planSug) {
-        document.getElementById('plan-titulo').value = planSug.titulo;
-        document.getElementById('plan-descricao').value = planSug.descricao;
-        document.getElementById('plan-metas').value = planSug.metas;
-        document.getElementById('plan-prazo').value = planSug.prazo;
-        showToast('Plano de Ação estruturado pela IA com sucesso!', 'info');
-      }
-    });
-
-    document.getElementById('form-action-plan').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const collabId = document.getElementById('action-plan-collab-id').value;
-      const titulo = document.getElementById('plan-titulo').value;
-      const descricao = document.getElementById('plan-descricao').value;
-      const metas = document.getElementById('plan-metas').value;
-      const prazo = document.getElementById('plan-prazo').value;
-
-      window.db.addPlanoAcao({ colaborador_id: collabId, titulo, descricao, metas, prazo });
-      showToast('Plano de Ação ativado com sucesso!', 'success');
-      document.getElementById('modal-action-plan').classList.remove('active');
-      refreshAllViews();
-      if (selectedCollabId === collabId) {
-        openCollaboratorDetails(collabId);
-      }
-    });
-
-    document.getElementById('btn-detail-take-disc').addEventListener('click', () => {
-      if (selectedCollabId) {
-        openDiscTestModal(selectedCollabId);
-      }
-    });
-
-    document.getElementById('btn-schedule-session').addEventListener('click', () => {
-      openScheduleModal();
-    });
-
-    document.getElementById('form-schedule').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const collabId = document.getElementById('schedule-collab-id-select').value;
-      const data = document.getElementById('schedule-data').value;
-      const hora = document.getElementById('schedule-hora').value;
-      const tipo = document.getElementById('schedule-tipo').value;
-
-      window.db.addAgenda({ colaborador_id: collabId, gestor_id: 'g1', data, hora, tipo });
-      showToast('Sessão de acompanhamento agendada!', 'success');
-      
-      document.getElementById('modal-schedule').classList.remove('active');
-      document.getElementById('form-schedule').reset();
-      refreshAllViews();
-    });
-
-    document.getElementById('btn-simulate-qr').addEventListener('click', () => {
-      if (selectedCollabId) {
-        openAutoEvaluationModal(selectedCollabId);
-      }
-    });
-    
-    document.getElementById('btn-simulate-qr-action').addEventListener('click', () => {
-      const collabId = document.getElementById('auto-eval-collab-id').value;
-      document.getElementById('modal-qr-view').classList.remove('active');
-      openAutoEvaluationModal(collabId);
-    });
-
-    document.getElementById('form-auto-eval').addEventListener('submit', (e) => {
-      e.preventDefault();
-      
-      const collabId = document.getElementById('auto-eval-collab-id').value;
-      const notaAuto = parseFloat(document.getElementById('auto-nota-auto').value);
-      const motivacao = parseFloat(document.getElementById('auto-nota-motivacao').value);
-      const metas = document.getElementById('auto-metas').value;
-      const comentarios = document.getElementById('auto-comentarios').value;
-
-      window.db.addAutoavaliacao({
-        colaborador_id: collabId,
-        nota_auto: notaAuto,
-        motivacao: motivacao,
-        respostas_metas: metas,
-        comentarios: comentarios
-      });
-
-      showToast('Autoavaliação enviada com sucesso! Os KPIs do gestor foram atualizados.', 'success');
-      document.getElementById('modal-auto-eval').classList.remove('active');
-      document.getElementById('form-auto-eval').reset();
-      refreshAllViews();
-      if (selectedCollabId === collabId) {
-        openCollaboratorDetails(collabId);
-      }
-    });
-
-  }
-
-  // --- MODAL TRIGGERS AND COMPONENT CONTROLLERS ---
-
-  function openModal(id) {
-    document.getElementById(id).classList.add('active');
-    lucide.createIcons();
-  }
-
-  function openFeedbackModal(collabId) {
-    const collab = window.db.getColaboradorById(collabId);
-    if (!collab) return;
-
-    document.getElementById('feedback-collab-id').value = collabId;
-    
-    const disc = window.db.getDiscResultByColaborador(collabId);
-    const discLabel = document.getElementById('ai-collab-disc-label');
-    if (disc) {
-      discLabel.textContent = `Perfil: ${disc.perfil}`;
-      discLabel.className = 'badge badge-info';
-    } else {
-      discLabel.textContent = `Não Mapeado`;
-      discLabel.className = 'badge badge-muted';
-    }
-
-    document.getElementById('ai-text-result-container').style.display = 'none';
-    document.getElementById('feed-obs').value = '';
-
-    openModal('modal-add-feedback');
-  }
-
-  function openScheduleModal() {
-    const select = document.getElementById('schedule-collab-id-select');
-    select.innerHTML = '';
-
-    const colaboradores = window.db.getColaboradores();
-    colaboradores.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = `${c.nome} (${c.cargo})`;
-      select.appendChild(opt);
-    });
-
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    document.getElementById('schedule-data').value = tomorrow.toISOString().split('T')[0];
-    document.getElementById('schedule-hora').value = '10:00';
-
-    openModal('modal-schedule');
-  }
-
-  function openAutoEvaluationModal(collabId) {
-    const collab = window.db.getColaboradorById(collabId);
-    if (!collab) return;
-
-    document.getElementById('auto-eval-collab-id').value = collabId;
-    document.getElementById('auto-eval-collab-name').textContent = collab.nome;
-    document.getElementById('form-auto-eval').reset();
-
-    openModal('modal-auto-eval');
-  }
-
-  // --- DISC ASSESSMENT DIALOG FLOW ---
-  
-  let discSurveyCurrentIndex = 0;
-  let discSurveyAnswers = [];
-  let discSurveyCollabId = null;
-
-  function openDiscTestModal(collabId) {
-    const collab = window.db.getColaboradorById(collabId);
-    if (!collab) return;
-
-    discSurveyCollabId = collabId;
-    discSurveyCurrentIndex = 0;
-    discSurveyAnswers = [];
-    document.getElementById('disc-collab-name-modal').textContent = collab.nome;
-
-    renderDiscSurveyQuestion();
-    openModal('modal-disc-test');
-  }
-
-  function renderDiscSurveyQuestion() {
-    const q = window.discEngine.questoes[discSurveyCurrentIndex];
-    const container = document.getElementById('disc-questions-container');
-    
-    document.getElementById('disc-survey-progress').textContent = `Questão ${discSurveyCurrentIndex + 1} de ${window.discEngine.questoes.length}`;
-
-    const optionsHtml = q.opcoes.map((opt, idx) => `
-      <label class="disc-survey-option-label">
-        <input type="radio" name="disc_opt" value="${opt.tipo}" ${discSurveyAnswers[discSurveyCurrentIndex] === opt.tipo ? 'checked' : ''}>
-        <span class="disc-survey-option-text">${opt.texto}</span>
-      </label>
-    `).join('');
-
-    container.innerHTML = `
-      <div class="disc-survey-q-card">
-        <div class="disc-survey-q-title">${q.id}. ${q.pergunta}</div>
-        <div class="disc-survey-options">
-          ${optionsHtml}
-        </div>
       </div>
     `;
 
-    const prevBtn = document.getElementById('btn-disc-prev');
-    const nextBtn = document.getElementById('btn-disc-next');
-    const finishBtn = document.getElementById('btn-disc-finish');
+    window._discColabEngine = engine;
+    window._discColabIndex  = qIndex;
 
-    prevBtn.style.display = discSurveyCurrentIndex > 0 ? 'inline-block' : 'none';
-    
-    if (discSurveyCurrentIndex === window.discEngine.questoes.length - 1) {
-      nextBtn.style.display = 'none';
-      finishBtn.style.display = 'inline-block';
-    } else {
-      nextBtn.style.display = 'inline-block';
-      finishBtn.style.display = 'none';
-    }
+    window.discColabSelect = (el, qId, tipo) => {
+      document.querySelectorAll('#disc-colab-opts .disc-option').forEach(d => d.classList.remove('selected'));
+      el.classList.add('selected');
+      engine.registrarResposta(parseInt(qId), tipo);
+      document.getElementById('disc-colab-next').disabled = false;
+    };
+
+    window.discColabNext = () => {
+      if (!engine.respostas[q.id]) return;
+      if (qIndex < total - 1) {
+        qIndex++;
+        renderQ();
+      } else {
+        // Show result
+        const resultado = engine.calcularResultado();
+        resultado.colaborador_id = currentColabId;
+        db.saveDiscResult(resultado);
+        showDiscResult(resultado);
+      }
+    };
+
+    window.discColabPrev = () => {
+      if (qIndex > 0) { qIndex--; renderQ(); }
+    };
   }
 
-  document.getElementById('btn-disc-next').addEventListener('click', () => {
-    const selected = document.querySelector('input[name="disc_opt"]:checked');
-    if (!selected) {
-      alert('Por favor, selecione uma opção para continuar.');
-      return;
-    }
-    
-    discSurveyAnswers[discSurveyCurrentIndex] = selected.value;
-    discSurveyCurrentIndex++;
-    renderDiscSurveyQuestion();
-  });
-
-  document.getElementById('btn-disc-prev').addEventListener('click', () => {
-    discSurveyCurrentIndex--;
-    renderDiscSurveyQuestion();
-  });
-
-  document.getElementById('btn-disc-finish').addEventListener('click', () => {
-    const selected = document.querySelector('input[name="disc_opt"]:checked');
-    if (!selected) {
-      alert('Por favor, selecione uma opção para finalizar.');
-      return;
-    }
-    discSurveyAnswers[discSurveyCurrentIndex] = selected.value;
-
-    const result = window.discEngine.calcular(discSurveyAnswers);
-    result.colaborador_id = discSurveyCollabId;
-    
-    window.db.saveDiscResult(result);
-    
-    showToast(`Mapeamento concluído! Perfil dominante: ${result.perfil}`, 'success');
-    document.getElementById('modal-disc-test').classList.remove('active');
-    
-    refreshAllViews();
-    if (selectedCollabId === discSurveyCollabId) {
-      openCollaboratorDetails(discSurveyCollabId);
-    }
-  });
-
-  // --- UTILITY FUNCTIONS ---
-
-  function showToast(message, type = 'primary') {
-    const container = document.getElementById('toast-container');
-    if (!container) {
-      const toastCont = document.createElement('div');
-      toastCont.id = 'toast-container';
-      document.body.appendChild(toastCont);
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'notification-toast';
-    
-    let icon = 'info';
-    if (type === 'success') {
-      icon = 'check-circle';
-      toast.style.borderColor = 'var(--success)';
-    } else if (type === 'danger') {
-      icon = 'alert-triangle';
-      toast.style.borderColor = 'var(--danger)';
-    } else if (type === 'warning') {
-      icon = 'alert-octagon';
-      toast.style.borderColor = 'var(--warning)';
-    }
-
-    toast.innerHTML = `
-      <i data-lucide="${icon}"></i>
-      <span style="font-size:13px; font-weight:600;">${message}</span>
-    `;
-
-    document.getElementById('toast-container').appendChild(toast);
-    lucide.createIcons();
-
-    setTimeout(() => {
-      toast.style.animation = 'fadeIn 0.3s reverse forwards';
-      setTimeout(() => toast.remove(), 300);
-    }, 3500);
+  function showDiscResult(r) {
+    const p = DISC_PROFILES[r.perfil_dominante];
+    document.getElementById('modal-disc-content').innerHTML = `
+      <div class="disc-result-card">
+        <div class="disc-result-badge" style="color:${p.cor};border-color:${p.cor};background:${p.cor}1a;margin:0 auto 16px;">
+          <span>${p.emoji}</span>
+        </div>
+        <div class="disc-result-name" style="color:${p.cor}">${p.nome}</div>
+        <div class="disc-result-desc">${p.descricao}</div>
+        <div class="disc-bars">
+          ${Object.entries(r.percentuais).map(([k,v]) => `
+            <div class="disc-bar-item">
+              <label><span>${DISC_PROFILES[k].emoji} ${DISC_PROFILES[k].nome}</span><span>${v}%</span></label>
+              <div class="bar"><div class="bar-fill bar-${k}" style="width:${v}%"></div></div>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:16px;padding:14px;background:rgba(124,58,237,0.08);border-radius:8px;border:1px solid rgba(124,58,237,0.2);font-size:0.85rem;color:#a78bfa;text-align:left;">
+          💡 ${p.abordagem_feedback}
+        </div>
+        <button class="btn btn-primary btn-full" style="margin-top:20px" onclick="closeModal('modal-disc');renderView(currentView)">Fechar</button>
+      </div>`;
+    showToast('Avaliação DISC salva!', 'success');
   }
 
-  function formatDate(dateStr) {
-    if (!dateStr) return '—';
-    const parts = dateStr.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    return dateStr;
+  openModal('modal-disc');
+  renderQ();
+}
+
+// Plano de ação
+function openPlanoForColab(id) {
+  currentPlanoColabId = id;
+  ['form-plano-titulo','form-plano-objetivo','form-plano-prazo','form-plano-responsavel'].forEach(fid => {
+    document.getElementById(fid).value = '';
+  });
+  openModal('modal-plano');
+}
+
+function submitPlano() {
+  const titulo       = document.getElementById('form-plano-titulo').value.trim();
+  const objetivo     = document.getElementById('form-plano-objetivo').value.trim();
+  const prazo        = document.getElementById('form-plano-prazo').value;
+  const responsavel  = document.getElementById('form-plano-responsavel').value.trim();
+
+  if (!titulo || !objetivo || !prazo) {
+    showToast('Preencha todos os campos obrigatórios.', 'error');
+    return;
   }
 
-  initApp();
+  db.addPlanoAcao({ colaborador_id: currentPlanoColabId, titulo, objetivo, prazo, responsavel });
+  closeModal('modal-plano');
+  showToast('Plano de ação criado!', 'success');
+  renderView(currentView);
+}
+
+function concluirPlano(id) {
+  db.updatePlanoAcaoStatus(id, 'Concluído');
+  showToast('Plano concluído!', 'success');
+  renderView(currentView);
+}
+
+// Agenda
+function openAgendaForColab(id) {
+  currentAgendaColabId = id;
+  document.getElementById('form-agenda-obs').value = '';
+  document.getElementById('form-agenda-data').value = '';
+  openModal('modal-agenda');
+}
+
+function submitAgenda() {
+  const tipo         = document.getElementById('form-agenda-tipo').value;
+  const data_hora    = document.getElementById('form-agenda-data').value;
+  const observacoes  = document.getElementById('form-agenda-obs').value.trim();
+
+  if (!data_hora) {
+    showToast('Selecione a data e hora da sessão.', 'error');
+    return;
+  }
+
+  db.addAgenda({ colaborador_id: currentAgendaColabId, tipo, data_hora, observacoes });
+  closeModal('modal-agenda');
+  showToast('Sessão agendada!', 'success');
+  renderView(currentView);
+}
+
+function concluirAgenda(id) {
+  db.updateAgendaStatus(id, 'Realizado');
+  showToast('Sessão marcada como realizada!', 'success');
+  renderView(currentView);
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  toast.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ─── RESET ────────────────────────────────────────────────────────────────────
+function resetApp() {
+  if (confirm('Tem certeza? Todos os dados serão apagados permanentemente.')) {
+    db.reset();
+    location.reload();
+  }
+}
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(b => {
+  b.addEventListener('click', e => {
+    if (e.target === b) b.classList.add('hidden');
+  });
 });
