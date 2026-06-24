@@ -82,6 +82,30 @@ class AeroPulseDB {
     return colaborador;
   }
 
+  removeColaborador(id) {
+    const db = this.getData();
+    db.colaboradores    = db.colaboradores.filter(c => c.id !== id);
+    db.disc_resultados  = db.disc_resultados.filter(d => d.colaborador_id !== id);
+    db.feedbacks        = db.feedbacks.filter(f => f.colaborador_id !== id);
+    db.autoavaliacoes   = db.autoavaliacoes.filter(a => a.colaborador_id !== id);
+    db.planos_acao      = db.planos_acao.filter(p => p.colaborador_id !== id);
+    db.agendas          = db.agendas.filter(a => a.colaborador_id !== id);
+    db.evolucao_historico = db.evolucao_historico.filter(h => h.colaborador_id !== id);
+    db.qr_feedback_tracking = db.qr_feedback_tracking.filter(q => q.colaborador_id !== id);
+    this.saveData(db);
+  }
+
+  updateColaborador(id, campos) {
+    const db = this.getData();
+    const idx = db.colaboradores.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      db.colaboradores[idx] = { ...db.colaboradores[idx], ...campos };
+      this.saveData(db);
+      return db.colaboradores[idx];
+    }
+    return null;
+  }
+
   // --- Feedbacks ---
   getFeedbacks() {
     return this.getData().feedbacks;

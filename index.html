@@ -121,12 +121,20 @@
     </div>
 
     <nav class="sidebar-nav">
-      <div class="nav-section-label">Gestão</div>
+      <div class="nav-section-label">Painéis</div>
       <div class="nav-item active" data-view="dashboard" onclick="navigateTo('dashboard', this)">
         <span class="icon">📊</span> Dashboard
       </div>
+      <div class="nav-item" data-view="painel-gestor" onclick="navigateTo('painel-gestor', this)">
+        <span class="icon">🧑‍💼</span> Painel do Gestor
+      </div>
+      <div class="nav-item" data-view="painel-colaborador" onclick="navigateTo('painel-colaborador', this)">
+        <span class="icon">👤</span> Painel do Colaborador
+      </div>
+
+      <div class="nav-section-label">Gestão</div>
       <div class="nav-item" data-view="colaboradores" onclick="navigateTo('colaboradores', this)">
-        <span class="icon">👥</span> Colaboradores
+        <span class="icon">👥</span> Equipe
       </div>
       <div class="nav-item" data-view="feedbacks" onclick="navigateTo('feedbacks', this)">
         <span class="icon">💬</span> Feedbacks
@@ -143,9 +151,9 @@
         <span class="icon">📅</span> Agenda
       </div>
 
-      <div class="nav-section-label">Perfis</div>
+      <div class="nav-section-label">Perfil</div>
       <div class="nav-item" data-view="meu-perfil" onclick="navigateTo('meu-perfil', this)">
-        <span class="icon">🧑‍💼</span> Meu Perfil
+        <span class="icon">⚙️</span> Meu Perfil
       </div>
     </nav>
 
@@ -159,7 +167,7 @@
         <div class="top-bar-title" id="top-bar-title">Dashboard</div>
         <div class="top-bar-subtitle" id="top-bar-subtitle">Visão geral da operação</div>
       </div>
-      <div class="top-bar-actions">
+      <div class="top-bar-actions" id="top-bar-actions">
         <button class="btn btn-primary btn-sm" id="top-bar-action-btn" onclick="openAddColaborador()">+ Adicionar Colaborador</button>
       </div>
     </header>
@@ -203,7 +211,17 @@
       </div>
     </section>
 
-    <!-- ── COLABORADORES ──────────────────────────────────────────────────── -->
+    <!-- ── PAINEL DO GESTOR ──────────────────────────────────────────────── -->
+    <section class="view" id="view-painel-gestor">
+      <div id="painel-gestor-content"></div>
+    </section>
+
+    <!-- ── PAINEL DO COLABORADOR ─────────────────────────────────────────── -->
+    <section class="view" id="view-painel-colaborador">
+      <div id="painel-colaborador-content"></div>
+    </section>
+
+    <!-- ── EQUIPE (CARDS) ────────────────────────────────────────────────── -->
     <section class="view" id="view-colaboradores">
       <div id="colab-empty" class="empty-state" style="display:none;">
         <div class="empty-icon">👥</div>
