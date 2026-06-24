@@ -109,7 +109,7 @@ const DISC_QUESTOES = [
 const DISC_INTERPRETACOES = {
   'D': {
     nome: 'Executor (Dominância)',
-    cor: '#f43f5e', // Rose/Red
+    cor: '#f43f5e',
     descricao: "Profissionais com alta dominância são focados em resultados, decididos e competitivos. Eles adoram resolver problemas complexos e assumir o controle em situações críticas. São movidos por desafios e autonomia.",
     pontos_fortes: ["Tomada de decisão rápida", "Foco em resultados e metas", "Coragem frente a crises operacionais", "Iniciativa e proatividade"],
     pontos_melhoria: ["Impaciência com processos lentos", "Dificuldade em ouvir opiniões divergentes", "Pode parecer ríspido ou autoritário", "Tendência a centralizar tarefas"],
@@ -117,7 +117,7 @@ const DISC_INTERPRETACOES = {
   },
   'I': {
     nome: 'Comunicador (Influência)',
-    cor: '#eab308', // Yellow
+    cor: '#eab308',
     descricao: "Profissionais com alta influência são comunicativos, otimistas e orientados a pessoas. Eles têm facilidade para persuadir, engajar equipes e criar conexões emocionais. São essenciais em áreas que demandam empatia e relacionamento com o cliente.",
     pontos_fortes: ["Excelente comunicação e persuasão", "Facilidade para trabalhar em equipe", "Empatia e foco na experiência do cliente", "Capacidade de motivar o grupo"],
     pontos_melhoria: ["Falta de atenção a detalhes burocráticos", "Dificuldade em seguir rotinas muito rígidas", "Necessidade constante de aprovação social", "Tendência a dispersar o foco operacional"],
@@ -125,7 +125,7 @@ const DISC_INTERPRETACOES = {
   },
   'S': {
     nome: 'Planejador (Estabilidade / Steadiness)',
-    cor: '#06b6d4', // Cyan/Teal
+    cor: '#06b6d4',
     descricao: "Profissionais estáveis são cooperativos, leais, pacientes e ótimos ouvintes. Eles preferem ambientes previsíveis e processos consolidados. São a 'âncora' de estabilidade da equipe, garantindo consistência e harmonia operacional.",
     pontos_fortes: ["Lealdade e espírito de equipe", "Trabalho consistente e detalhado", "Paciência e resiliência sob rotina", "Ótima escuta e mediação de conflitos"],
     pontos_melhoria: ["Resistência a mudanças rápidas ou bruscas", "Dificuldade em lidar com confrontos diretos", "Tendência a guardar estresse para si", "Hesitação em assumir riscos imediatos"],
@@ -133,7 +133,7 @@ const DISC_INTERPRETACOES = {
   },
   'C': {
     nome: 'Analista (Conformidade / Conscientiousness)',
-    cor: '#8b5cf6', // Violet
+    cor: '#8b5cf6',
     descricao: "Profissionais com alta conformidade são analíticos, detalhistas, precisos e orientados a normas. Eles buscam a perfeição técnica, seguem regras à risca e odeiam cometer erros. São cruciais para a segurança, compliance e qualidade de processos em ambientes críticos.",
     pontos_fortes: ["Adesão estrita a regras e checklists de segurança", "Precisão e rigor técnico absoluto", "Pensamento lógico e analítico apurado", "Organização e planejamento detalhado"],
     pontos_melhoria: ["Tendência ao perfeccionismo paralisante", "Excesso de formalidade ou distanciamento interpessoal", "Dificuldade em improvisar quando necessário", "Foco excessivo na falha alheia"],
@@ -172,7 +172,6 @@ function calcularDISC(respostas) {
   profiles.sort((a, b) => b.pct - a.pct);
 
   let perfilResult = '';
-  // If the top 2 profiles are close (difference <= 10%), make it a joint profile
   if (profiles[0].pct - profiles[1].pct <= 10) {
     perfilResult = `${profiles[0].nome}/${profiles[1].nome}`;
   } else {

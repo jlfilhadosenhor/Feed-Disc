@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const collab = window.db.getColaboradorById(a.colaborador_id);
         if (collab) {
           const dateObj = new Date(a.data);
-          const day = dateObj.getDate() + 1; // Correction for timezone
+          const day = dateObj.getDate() + 1;
           const monthStr = dateObj.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
           
           const item = document.createElement('div');
@@ -298,7 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const feedbacks = window.db.getFeedbacksByColaborador(c.id);
       const risk = window.riskEngine.calcularRisco(c.id);
 
-      // DISC Profile badge
       let discBadge = `<span class="badge badge-muted">Sem Teste</span>`;
       if (disc) {
         const prim = disc.perfil.split('/')[0];
@@ -310,17 +309,14 @@ document.addEventListener('DOMContentLoaded', () => {
         discBadge = `<span class="badge ${colorClass}">${disc.perfil}</span>`;
       }
 
-      // Last feedback date
       const lastFeedbackDate = feedbacks.length > 0 ? formatDate(feedbacks[0].data) : 'Nenhum';
 
-      // Overall average score
       let scoreGeral = '—';
       if (feedbacks.length > 0) {
         const latest = feedbacks[0];
         scoreGeral = ((latest.nota_performance + latest.nota_comportamento + latest.nota_compliance) / 3).toFixed(1);
       }
 
-      // Risk level badge
       let riskClass = 'badge-success';
       if (risk.score >= 70) riskClass = 'badge-danger';
       else if (risk.score >= 40) riskClass = 'badge-warning';
@@ -359,7 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lucide.createIcons();
 
-    // Bind Detail & Feedback buttons in Colaboradores table
     document.querySelectorAll('.btn-view-collab').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.currentTarget.getAttribute('data-id');
@@ -385,20 +380,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!collab) return;
 
-    // Show panel
     document.getElementById('collab-detail-panel').style.display = 'block';
     
-    // Basic Info
     document.getElementById('detail-avatar').src = collab.foto;
     document.getElementById('detail-name').textContent = collab.nome;
     document.getElementById('detail-cargo').textContent = collab.cargo;
     
-    // Status Badge
     const statusBadge = document.getElementById('detail-status-badge');
     statusBadge.textContent = collab.status;
     statusBadge.className = collab.status === 'Ativo' ? 'badge badge-success' : 'badge badge-muted';
 
-    // Scores
     let avgPerf = '—';
     let avgCompliance = '—';
     if (feedbacks.length > 0) {
@@ -408,7 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('detail-stat-perf').textContent = avgPerf;
     document.getElementById('detail-stat-compliance').textContent = avgCompliance;
 
-    // DISC Display
     const discProfileEl = document.getElementById('detail-disc-profile');
     const discScoresRow = document.getElementById('detail-disc-scores-row');
     const discDescEl = document.getElementById('detail-disc-desc');
@@ -420,7 +410,6 @@ document.addEventListener('DOMContentLoaded', () => {
       discProfileEl.textContent = disc.perfil;
       btnTakeDisc.innerHTML = `<i data-lucide="refresh-cw"></i>Mapear Novamente`;
       
-      // Render D, I, S, C values
       const primarySigla = disc.principal;
       const interpretation = window.discEngine.interpretacoes[primarySigla];
       
@@ -457,13 +446,10 @@ document.addEventListener('DOMContentLoaded', () => {
       discDescEl.textContent = 'O perfil DISC ajuda a entender a personalidade operacional do profissional, seus pontos de foco e a forma ideal de conduzir conversas de feedback e desenvolvimento.';
     }
 
-    // Set QR Code
-    // We generate a QR Code referencing the auto-evaluation endpoint for this user
     const qrUrl = `http://aeropulse.com/auto-eval/${collab.id}`;
     const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrUrl)}`;
     document.getElementById('detail-qr-img').src = qrImgUrl;
 
-    // Action Plans Table
     const plansTbody = document.getElementById('detail-action-plans-tbody');
     plansTbody.innerHTML = '';
     
@@ -496,7 +482,6 @@ document.addEventListener('DOMContentLoaded', () => {
       plansTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Nenhum plano de ação cadastrado.</td></tr>`;
     }
 
-    // Feedbacks History Table
     const feedsTbody = document.getElementById('detail-feedbacks-history-tbody');
     feedsTbody.innerHTML = '';
     
@@ -517,15 +502,12 @@ document.addEventListener('DOMContentLoaded', () => {
       feedsTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Nenhum feedback registrado.</td></tr>`;
     }
 
-    // Render Collaborator Evolution Chart
     renderCollabEvolutionChart(collab.id);
     
     lucide.createIcons();
 
-    // Scroll to detail panel
     document.getElementById('collab-detail-panel').scrollIntoView({ behavior: 'smooth' });
 
-    // Bind action plan completion
     document.querySelectorAll('.btn-complete-plan').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const planId = e.currentTarget.getAttribute('data-id');
@@ -626,7 +608,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     lucide.createIcons();
 
-    // Bind Mitigation button click
     document.querySelectorAll('.btn-view-mitigation').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.currentTarget.getAttribute('data-id');
@@ -721,13 +702,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Bind Agenda action buttons
     document.querySelectorAll('.btn-realize-session').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.currentTarget.getAttribute('data-id');
         window.db.updateAgendaStatus(id, 'Realizado');
         
-        // When session is done, prompt feedback popup for that collab
         const session = window.db.getAgendas().find(a => a.id === id);
         showToast('Sessão marcada como realizada!', 'success');
         refreshAllViews();
@@ -759,7 +738,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const planos = window.db.getPlanosAcaoByColaborador(activeCollabPortalId);
     const autoavaliacoes = window.db.getAutoavaliacoesByColaborador(activeCollabPortalId);
 
-    // Portal header info
     document.getElementById('portal-user-avatar').src = collab.foto;
     document.getElementById('portal-user-name').textContent = collab.nome;
     document.getElementById('portal-user-cargo').textContent = collab.cargo;
@@ -773,7 +751,6 @@ document.addEventListener('DOMContentLoaded', () => {
       discBadge.className = 'badge badge-muted';
     }
 
-    // Personal KPIs
     let avgScoreVal = '—';
     let complianceVal = '—';
     if (feedbacks.length > 0) {
@@ -782,7 +759,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.getElementById('portal-kpi-perf').textContent = avgScoreVal;
     
-    // Motivation KPI
     const motivEl = document.getElementById('portal-kpi-motivacao');
     const motivTrend = document.getElementById('portal-kpi-motivacao-trend');
     if (autoavaliacoes.length > 0) {
@@ -794,12 +770,10 @@ document.addEventListener('DOMContentLoaded', () => {
       motivTrend.textContent = 'Preencha a autoavaliação';
     }
 
-    // Active Action Plans Count
     const activePlansCount = planos.filter(p => p.status === 'Em Andamento').length;
     document.getElementById('portal-kpi-planos').textContent = activePlansCount;
     document.getElementById('portal-kpi-planos-trend').textContent = `${planos.length} total criados`;
 
-    // Compliance rating card class adjustment
     document.getElementById('portal-kpi-conformidade').textContent = complianceVal;
     const conforCard = document.getElementById('portal-kpi-confor-card');
     if (complianceVal !== '—') {
@@ -811,7 +785,6 @@ document.addEventListener('DOMContentLoaded', () => {
       conforCard.className = 'kpi-card performance';
     }
 
-    // Action Plans List for Employee
     const plansTbody = document.getElementById('portal-action-plans-tbody');
     plansTbody.innerHTML = '';
     
@@ -844,7 +817,6 @@ document.addEventListener('DOMContentLoaded', () => {
       plansTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px 0;">Nenhum plano de ação ativo no momento.</td></tr>`;
     }
 
-    // Bind portal action plan complete
     document.querySelectorAll('.btn-complete-plan-portal').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const planId = e.currentTarget.getAttribute('data-id');
@@ -854,7 +826,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // DISC Test panel in collaborator dashboard
     const discStatusContent = document.getElementById('portal-disc-status-content');
     if (disc) {
       discStatusContent.innerHTML = `
@@ -884,7 +855,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Portal Feedbacks History Table
     const feedsTbody = document.getElementById('portal-feedbacks-tbody');
     feedsTbody.innerHTML = '';
     
@@ -904,7 +874,6 @@ document.addEventListener('DOMContentLoaded', () => {
       feedsTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px 0;">Nenhum feedback registrado ainda.</td></tr>`;
     }
 
-    // Render Portal Line Chart
     renderPortalEvolutionChart(activeCollabPortalId);
     
     lucide.createIcons();
@@ -995,22 +964,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setupEventListeners() {
     
-    // Switch View navigation links
     document.querySelectorAll('.nav-link').forEach(link => {
       link.addEventListener('click', (e) => {
         const viewName = e.currentTarget.getAttribute('data-view');
         
-        // Remove active class from all links
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-        
-        // Add active to clicked link
         e.currentTarget.classList.add('active');
         
-        // Toggle view containers
         document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
         document.getElementById(`view-${viewName}`).classList.add('active');
         
-        // Set Header Title text
         let headerTitle = 'Dashboard Operacional';
         if (viewName === 'colaboradores') headerTitle = 'Gestão de Colaboradores';
         else if (viewName === 'riscos') headerTitle = 'Gestão de Risco & Mitigação';
@@ -1022,7 +985,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Toggle Role: Manager vs Collaborator
     document.getElementById('toggle-manager').addEventListener('click', (e) => {
       if (currentRole === 'manager') return;
       currentRole = 'manager';
@@ -1032,7 +994,6 @@ document.addEventListener('DOMContentLoaded', () => {
       
       refreshAllViews();
       
-      // Go to manager dashboard view by default
       const dashLink = document.querySelector('[data-view="dashboard"]');
       if (dashLink) dashLink.click();
     });
@@ -1040,17 +1001,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggle-collab').addEventListener('click', (e) => {
       if (currentRole === 'collaborator') return;
       
-      // Prompt user to select which collaborator to simulate
       const collaborators = window.db.getColaboradores();
       
-      // Create quick choice list
       let promptText = "Selecione o colaborador que deseja simular:\n\n";
       collaborators.forEach((c, idx) => {
         promptText += `${idx + 1}. ${c.nome} (${c.cargo})\n`;
       });
       
       const choice = prompt(promptText, "1");
-      if (choice === null) return; // cancelled
+      if (choice === null) return;
       
       const choiceIdx = parseInt(choice) - 1;
       if (isNaN(choiceIdx) || choiceIdx < 0 || choiceIdx >= collaborators.length) {
@@ -1066,12 +1025,10 @@ document.addEventListener('DOMContentLoaded', () => {
       
       refreshAllViews();
       
-      // Go to collaborator portal view
       const portalLink = document.querySelector('[data-view="colaborador-portal"]');
       if (portalLink) portalLink.click();
     });
 
-    // Reset Database Demo Button
     document.getElementById('btn-reset-db').addEventListener('click', () => {
       if (confirm('Deseja realmente redefinir o banco de dados e carregar os dados de demonstração da Aviação? Todos os seus feedbacks e cadastros locais serão limpos.')) {
         window.db.reset();
@@ -1082,35 +1039,27 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Modals Open Shortcut buttons in Dashboard
     document.getElementById('btn-schedule-shortcut').addEventListener('click', () => {
       openScheduleModal();
     });
     
     document.getElementById('btn-feedback-shortcut').addEventListener('click', () => {
-      // Default to first collaborator
       const collab = window.db.getColaboradores()[0];
       if (collab) openFeedbackModal(collab.id);
     });
 
-    // Close Modals events
     document.querySelectorAll('.modal-close, .modal-cancel, #btn-close-qr-modal').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        // Find closest modal-overlay and close it
         const overlay = e.currentTarget.closest('.modal-overlay');
         if (overlay) overlay.classList.remove('active');
       });
     });
 
-    // Close Detail sheet panel
     document.getElementById('btn-close-detail').addEventListener('click', () => {
       document.getElementById('collab-detail-panel').style.display = 'none';
       selectedCollabId = null;
     });
 
-    // --- FORM SUBMISSIONS ---
-
-    // Cadastrar Colaborador
     document.getElementById('form-add-collab').addEventListener('submit', (e) => {
       e.preventDefault();
       
@@ -1122,22 +1071,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const newCollab = window.db.addColaborador({ nome, email, cargo, foto });
       showToast(`${newCollab.nome} foi cadastrado com sucesso!`, 'success');
       
-      // Close modal
       document.getElementById('modal-add-collab').classList.remove('active');
-      
-      // Clear form
       document.getElementById('form-add-collab').reset();
-      
-      // Refresh
       refreshAllViews();
     });
 
-    // Add Collaborator button trigger modal
     document.getElementById('btn-add-collab').addEventListener('click', () => {
       openModal('modal-add-collab');
     });
 
-    // Add Feedback form
     document.getElementById('form-add-feedback').addEventListener('submit', (e) => {
       e.preventDefault();
       
@@ -1172,18 +1114,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       window.db.addFeedback(feedback);
       showToast('Feedback registrado com sucesso!', 'success');
-      
-      // Close modal
       document.getElementById('modal-add-feedback').classList.remove('active');
-      
-      // Refresh views
       refreshAllViews();
       if (selectedCollabId === collabId) {
         openCollaboratorDetails(collabId);
       }
     });
 
-    // AI suggestion generation in feedback form
     document.getElementById('btn-generate-ai-text').addEventListener('click', () => {
       const collabId = document.getElementById('feedback-collab-id').value;
       const area = document.getElementById('ai-feed-area').value;
@@ -1206,19 +1143,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Copy AI text suggestion into observations field
     document.getElementById('btn-copy-ai-text').addEventListener('click', () => {
       const text = document.getElementById('ai-text-suggestion').textContent;
       document.getElementById('feed-obs').value = text;
       showToast('Abordagem da IA copiada para as observações!', 'info');
     });
 
-    // Trigger Action Plan Create Modal
     document.getElementById('btn-create-action-plan').addEventListener('click', () => {
       if (selectedCollabId) {
         document.getElementById('action-plan-collab-id').value = selectedCollabId;
         
-        // Pick lowest pillar to show AI default recommendation
         const feedbacks = window.db.getFeedbacksByColaborador(selectedCollabId);
         let lowestPillar = 'comunicacao';
         if (feedbacks.length > 0) {
@@ -1234,7 +1168,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // AI Action Plan generator trigger
     document.getElementById('btn-generate-ai-plan').addEventListener('click', () => {
       const collabId = document.getElementById('action-plan-collab-id').value;
       const pilar = document.getElementById('ai-plan-pilar').value;
@@ -1249,7 +1182,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Action Plan submit
     document.getElementById('form-action-plan').addEventListener('submit', (e) => {
       e.preventDefault();
       
@@ -1261,30 +1193,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
       window.db.addPlanoAcao({ colaborador_id: collabId, titulo, descricao, metas, prazo });
       showToast('Plano de Ação ativado com sucesso!', 'success');
-      
-      // Close modal
       document.getElementById('modal-action-plan').classList.remove('active');
-      
-      // Refresh views
       refreshAllViews();
       if (selectedCollabId === collabId) {
         openCollaboratorDetails(collabId);
       }
     });
 
-    // Trigger DISC Mapear Novamente from Detail View
     document.getElementById('btn-detail-take-disc').addEventListener('click', () => {
       if (selectedCollabId) {
         openDiscTestModal(selectedCollabId);
       }
     });
 
-    // Trigger Schedule Session Modal
     document.getElementById('btn-schedule-session').addEventListener('click', () => {
       openScheduleModal();
     });
 
-    // Schedule form submit
     document.getElementById('form-schedule').addEventListener('submit', (e) => {
       e.preventDefault();
       
@@ -1296,17 +1221,11 @@ document.addEventListener('DOMContentLoaded', () => {
       window.db.addAgenda({ colaborador_id: collabId, gestor_id: 'g1', data, hora, tipo });
       showToast('Sessão de acompanhamento agendada!', 'success');
       
-      // Close modal
       document.getElementById('modal-schedule').classList.remove('active');
-      
-      // Clear form
       document.getElementById('form-schedule').reset();
-      
-      // Refresh
       refreshAllViews();
     });
 
-    // QR Code simulation scan trigger
     document.getElementById('btn-simulate-qr').addEventListener('click', () => {
       if (selectedCollabId) {
         openAutoEvaluationModal(selectedCollabId);
@@ -1319,7 +1238,6 @@ document.addEventListener('DOMContentLoaded', () => {
       openAutoEvaluationModal(collabId);
     });
 
-    // Auto-avaliação submit form (Collaborator Perspective)
     document.getElementById('form-auto-eval').addEventListener('submit', (e) => {
       e.preventDefault();
       
@@ -1338,14 +1256,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       showToast('Autoavaliação enviada com sucesso! Os KPIs do gestor foram atualizados.', 'success');
-      
-      // Close modal
       document.getElementById('modal-auto-eval').classList.remove('active');
-      
-      // Clear form
       document.getElementById('form-auto-eval').reset();
-      
-      // Refresh
       refreshAllViews();
       if (selectedCollabId === collabId) {
         openCollaboratorDetails(collabId);
@@ -1361,14 +1273,12 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
   }
 
-  // Open feedback dialog
   function openFeedbackModal(collabId) {
     const collab = window.db.getColaboradorById(collabId);
     if (!collab) return;
 
     document.getElementById('feedback-collab-id').value = collabId;
     
-    // Check if DISC mapped to show labels in AI box
     const disc = window.db.getDiscResultByColaborador(collabId);
     const discLabel = document.getElementById('ai-collab-disc-label');
     if (disc) {
@@ -1379,14 +1289,12 @@ document.addEventListener('DOMContentLoaded', () => {
       discLabel.className = 'badge badge-muted';
     }
 
-    // Hide AI result until they generate
     document.getElementById('ai-text-result-container').style.display = 'none';
     document.getElementById('feed-obs').value = '';
 
     openModal('modal-add-feedback');
   }
 
-  // Open schedule dialog
   function openScheduleModal() {
     const select = document.getElementById('schedule-collab-id-select');
     select.innerHTML = '';
@@ -1399,7 +1307,6 @@ document.addEventListener('DOMContentLoaded', () => {
       select.appendChild(opt);
     });
 
-    // Default dates
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     document.getElementById('schedule-data').value = tomorrow.toISOString().split('T')[0];
@@ -1408,7 +1315,6 @@ document.addEventListener('DOMContentLoaded', () => {
     openModal('modal-schedule');
   }
 
-  // Open auto-evaluation input form (representing QR Code scan payload)
   function openAutoEvaluationModal(collabId) {
     const collab = window.db.getColaboradorById(collabId);
     if (!collab) return;
@@ -1419,7 +1325,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     openModal('modal-auto-eval');
   }
-
 
   // --- DISC ASSESSMENT DIALOG FLOW ---
   
@@ -1444,10 +1349,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const q = window.discEngine.questoes[discSurveyCurrentIndex];
     const container = document.getElementById('disc-questions-container');
     
-    // Progress
     document.getElementById('disc-survey-progress').textContent = `Questão ${discSurveyCurrentIndex + 1} de ${window.discEngine.questoes.length}`;
 
-    // Options mapping HTML
     const optionsHtml = q.opcoes.map((opt, idx) => `
       <label class="disc-survey-option-label">
         <input type="radio" name="disc_opt" value="${opt.tipo}" ${discSurveyAnswers[discSurveyCurrentIndex] === opt.tipo ? 'checked' : ''}>
@@ -1464,7 +1367,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
 
-    // Navigation buttons toggle
     const prevBtn = document.getElementById('btn-disc-prev');
     const nextBtn = document.getElementById('btn-disc-next');
     const finishBtn = document.getElementById('btn-disc-finish');
@@ -1480,7 +1382,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // DISC Question buttons bindings
   document.getElementById('btn-disc-next').addEventListener('click', () => {
     const selected = document.querySelector('input[name="disc_opt"]:checked');
     if (!selected) {
@@ -1506,30 +1407,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     discSurveyAnswers[discSurveyCurrentIndex] = selected.value;
 
-    // Calculate score
     const result = window.discEngine.calcular(discSurveyAnswers);
     result.colaborador_id = discSurveyCollabId;
     
-    // Save to Database
     window.db.saveDiscResult(result);
     
-    // Show Toast
     showToast(`Mapeamento concluído! Perfil dominante: ${result.perfil}`, 'success');
-    
-    // Close modal
     document.getElementById('modal-disc-test').classList.remove('active');
     
-    // Refresh UI
     refreshAllViews();
     if (selectedCollabId === discSurveyCollabId) {
       openCollaboratorDetails(discSurveyCollabId);
     }
   });
 
-
   // --- UTILITY FUNCTIONS ---
 
-  // Custom Toast notification
   function showToast(message, type = 'primary') {
     const container = document.getElementById('toast-container');
     if (!container) {
@@ -1561,14 +1454,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toast-container').appendChild(toast);
     lucide.createIcons();
 
-    // Auto remove
     setTimeout(() => {
       toast.style.animation = 'fadeIn 0.3s reverse forwards';
       setTimeout(() => toast.remove(), 300);
     }, 3500);
   }
 
-  // Format Date (YYYY-MM-DD -> DD/MM/YYYY)
   function formatDate(dateStr) {
     if (!dateStr) return '—';
     const parts = dateStr.split('-');
@@ -1578,6 +1469,5 @@ document.addEventListener('DOMContentLoaded', () => {
     return dateStr;
   }
 
-  // Start app
   initApp();
 });

@@ -16,7 +16,6 @@ class AeroPulseRiskEngine {
     const feedbacks = window.db.getFeedbacksByColaborador(colaboradorId);
     const autoavaliacoes = window.db.getAutoavaliacoesByColaborador(colaboradorId);
     const planos = window.db.getPlanosAcaoByColaborador(colaboradorId);
-    const disc = window.db.getDiscResultByColaborador(colaboradorId);
 
     let score = 0;
     const flags = [];
@@ -27,14 +26,12 @@ class AeroPulseRiskEngine {
       const latestFeedback = feedbacks[0];
       const avgPerf = (latestFeedback.nota_performance + latestFeedback.nota_comportamento + latestFeedback.nota_compliance) / 3;
       
-      // If latest score is low (< 7.5)
       if (avgPerf < 7.5) {
         const penalty = Math.round((7.5 - avgPerf) * 20); // up to 30 points
         score += Math.min(30, penalty);
         flags.push("Média de performance recente abaixo do padrão operacional (7.5)");
       }
 
-      // Check for performance drop (Trend)
       if (feedbacks.length > 1) {
         const prevFeedback = feedbacks[1];
         const prevAvg = (prevFeedback.nota_performance + prevFeedback.nota_comportamento + prevFeedback.nota_compliance) / 3;
@@ -46,13 +43,11 @@ class AeroPulseRiskEngine {
         }
       }
     } else {
-      // No feedback yet represents a moderate baseline risk
       score += 10;
       flags.push("Sem histórico de feedbacks formalizados no sistema");
     }
 
     // 2. COMPLIANCE & SAFETY (Weight: 25%)
-    // Critical in aviation!
     if (feedbacks.length > 0) {
       const latestFeedback = feedbacks[0];
       if (latestFeedback.nota_compliance < 7.5) {
@@ -66,7 +61,6 @@ class AeroPulseRiskEngine {
     }
 
     // 3. EMOTIONAL / MOTIVATION (Weight: 25%)
-    // Read from latest autoavaliação
     if (autoavaliacoes.length > 0) {
       const latestAuto = autoavaliacoes[0];
       if (latestAuto.motivacao <= 6) {
@@ -78,7 +72,6 @@ class AeroPulseRiskEngine {
         flags.push(`Motivação reportada em declínio moderado: Nota ${latestAuto.motivacao}/10`);
       }
     } else {
-      // Missing self-evaluations represents lack of engagement
       score += 12;
       flags.push("Ausência de autoavaliação de engajamento preenchida pelo colaborador");
       recomendacoes.push("Solicitar preenchimento de autoavaliação via QR Code impresso ou link.");
@@ -104,12 +97,11 @@ class AeroPulseRiskEngine {
     } else {
       const activePlans = planos.filter(p => p.status === 'Em Andamento').length;
       if (activePlans > 1) {
-        score += 5; // overloaded
+        score += 5;
         flags.push("Múltiplos planos de ação simultâneos ativos");
       }
     }
 
-    // Adjust score boundaries
     score = Math.max(0, Math.min(100, score));
 
     // Categorize
@@ -160,11 +152,9 @@ class AeroPulseRiskEngine {
     let feedbackRealizadoCount = 0;
 
     colaboradores.forEach(c => {
-      // Risk
       const risk = this.calcularRisco(c.id);
       totalRisk += risk.score;
 
-      // Feedbacks
       const feedbacks = window.db.getFeedbacksByColaborador(c.id);
       if (feedbacks.length > 0) {
         const latest = feedbacks[0];
@@ -172,26 +162,21 @@ class AeroPulseRiskEngine {
         feedbackRealizadoCount += feedbacks.length;
       }
       
-      // Auto
       const autos = window.db.getAutoavaliacoesByColaborador(c.id);
       if (autos.length > 0) {
         totalMotivacao += autos[0].motivacao;
       } else {
-        totalMotivacao += 5; // Default neutral-low baseline if not answered
+        totalMotivacao += 5;
       }
 
-      // Expected vs Realized feedbacks (We expect at least 1 per month per active employee, say 2 total for active dataset duration)
       feedbackTotal += 2;
     });
 
     const performanceMedia = (totalPerf / colaboradores.length).toFixed(1);
     const engajamentoMedio = Math.round((totalMotivacao / colaboradores.length) * 10);
     const riscoMedio = Math.round(totalRisk / colaboradores.length);
-    
-    // Frequency: percentage of expected feedbacks that were executed
     const frequenciaFeedback = Math.min(100, Math.round((feedbackRealizadoCount / feedbackTotal) * 100));
 
-    // Evolution KPI (Comparison of average scores in June vs May)
     const db = window.db.getData();
     let scoreJun = 0;
     let countJun = 0;
@@ -219,7 +204,7 @@ class AeroPulseRiskEngine {
     return {
       performance: parseFloat(performanceMedia) || 0,
       engajamento: engajamentoMedio,
-      evolucao: evolucaoDiferenca, // percentage increase or decrease
+      evolucao: evolucaoDiferenca,
       risco: riscoMedio,
       frequencia: frequenciaFeedback
     };

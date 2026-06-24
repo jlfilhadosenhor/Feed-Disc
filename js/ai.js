@@ -17,12 +17,10 @@ class AeroPulseAICopilot {
     
     if (!colaborador) return null;
 
-    // Get dominant profile type
-    const perfilTipo = disc ? disc.principal : 'S'; // Fallback to S (Planejador) if untested
+    const perfilTipo = disc ? disc.principal : 'S';
 
-    // Templates database mapped by DISC dominant profile, area and tone
     const templates = {
-      'D': { // Executor
+      'D': {
         abordagem_estrategica: "Abordagem direta, objetiva e focada em metas e impacto nos resultados.",
         dicas_entrega: [
           "Evite rodeios ou conversas informais longas.",
@@ -44,7 +42,7 @@ class AeroPulseAICopilot {
           }
         }
       },
-      'I': { // Comunicador
+      'I': {
         abordagem_estrategica: "Abordagem calorosa, empática, valorizando o relacionamento e o impacto nas pessoas.",
         dicas_entrega: [
           "Inicie com uma conversa informal acolhedora.",
@@ -66,7 +64,7 @@ class AeroPulseAICopilot {
           }
         }
       },
-      'S': { // Planejador
+      'S': {
         abordagem_estrategica: "Abordagem estruturada, calma, demonstrando apoio mútuo e estabilidade.",
         dicas_entrega: [
           "Mantenha um tom de voz tranquilo e amigável.",
@@ -88,7 +86,7 @@ class AeroPulseAICopilot {
           }
         }
       },
-      'C': { // Analista
+      'C': {
         abordagem_estrategica: "Abordagem formal, baseada em dados, normas e com critérios técnicos exatos.",
         dicas_entrega: [
           "Evite adjetivos vagos; use dados, datas e fatos específicos.",
@@ -165,7 +163,6 @@ class AeroPulseAICopilot {
 
     const sugestao = recomendacoes[pilarFraco] || recomendacoes['comunicacao'];
     
-    // Calculate due date
     const today = new Date();
     today.setDate(today.getDate() + sugestao.prazo_dias);
     const prazoFormatado = today.toISOString().split('T')[0];

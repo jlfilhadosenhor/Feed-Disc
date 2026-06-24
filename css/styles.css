@@ -394,7 +394,7 @@ header {
 
 .kpi-trend.positive { color: var(--success); }
 .kpi-trend.negative { color: var(--danger); }
-.kpi-trend.neutral { color: var(--text-muted); }
+.kpi-trend.warning { color: var(--warning); }
 
 .kpi-icon-container {
   width: 48px;
@@ -423,13 +423,6 @@ header {
 .layout-grid-1x1 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-.layout-grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
   margin-bottom: 32px;
 }

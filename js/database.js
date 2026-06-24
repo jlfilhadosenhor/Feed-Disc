@@ -74,7 +74,7 @@ const DEFAULT_DATABASE = {
       nota_performance: 8.5, 
       nota_comportamento: 9.0,
       nota_compliance: 9.5,
-      observacoes: 'Excelente pontualidade e conformidade com protocolos de segurança no portão. Precisa melhorar velocidade de resposta sob alta pressão em overbooking.',
+      observacoes: 'Excelente pontualidade e conformidade com protocols de segurança no portão. Precisa melhorar velocidade de resposta sob alta pressão em overbooking.',
       pilares: { comunicacao: 8, conformidade: 10, resolucao_problemas: 8, empatia: 9 },
       ia_sugerido: false
     },
