@@ -441,6 +441,94 @@
   </div>
 </div>
 
+<!-- Edit Collaborator -->
+<div class="modal-backdrop hidden" id="modal-edit-colab">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Editar Colaborador</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-colab')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nome Completo</label>
+      <input class="form-control" id="edit-colab-nome">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cargo / Função</label>
+      <input class="form-control" id="edit-colab-cargo">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Setor</label>
+      <input class="form-control" id="edit-colab-setor">
+    </div>
+    <div class="form-group">
+      <label class="form-label">E-mail</label>
+      <input class="form-control" id="edit-colab-email" type="email">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Telefone</label>
+      <input class="form-control" id="edit-colab-telefone">
+    </div>
+    <div class="form-group">
+      <label class="form-label">URL da Foto (opcional)</label>
+      <input class="form-control" id="edit-colab-foto" placeholder="https://...">
+    </div>
+    <input type="hidden" id="edit-colab-id">
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-colab')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitEditColaborador()">Salvar Alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Gestor Photo -->
+<div class="modal-backdrop hidden" id="modal-edit-gestor">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Editar Perfil do Gestor</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-gestor')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nome</label>
+      <input class="form-control" id="edit-gestor-nome">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cargo</label>
+      <input class="form-control" id="edit-gestor-cargo">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Empresa</label>
+      <input class="form-control" id="edit-gestor-empresa">
+    </div>
+    <div class="form-group">
+      <label class="form-label">URL da Foto</label>
+      <input class="form-control" id="edit-gestor-foto" placeholder="https://... (cole o link da sua foto)">
+    </div>
+    <div style="text-align:center;margin-bottom:12px;">
+      <img id="edit-gestor-foto-preview" src="" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #7c3aed;display:none;">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-gestor')">Cancelar</button>
+      <button class="btn btn-primary" onclick="submitEditGestor()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Remove -->
+<div class="modal-backdrop hidden" id="modal-confirm-remove">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Confirmar Remoção</span>
+      <button class="modal-close" onclick="closeModal('modal-confirm-remove')">✕</button>
+    </div>
+    <p style="color:#94a3b8;margin-bottom:20px;" id="confirm-remove-msg">Tem certeza que deseja remover este colaborador? Todos os dados associados serão perdidos.</p>
+    <input type="hidden" id="confirm-remove-id">
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-confirm-remove')">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmRemoveColaborador()">🗑️ Remover</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast Container -->
 <div id="toast-container"></div>
 

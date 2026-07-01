@@ -189,23 +189,34 @@ function navigateTo(view, el) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
   const titles = {
-    'dashboard':      ['Dashboard',             'Visão geral da operação'],
-    'colaboradores':  ['Colaboradores',         'Equipe cadastrada na plataforma'],
-    'feedbacks':      ['Feedbacks',             'Histórico de feedbacks registrados'],
-    'risco':          ['Risco Operacional',     'Análise de risco por colaborador'],
-    'planos':         ['Planos de Ação',        'Planos ativos da equipe'],
-    'agenda':         ['Agenda',                'Sessões de acompanhamento agendadas'],
-    'meu-perfil':     ['Meu Perfil',            'Seu perfil DISC e informações de gestor'],
-    'perfil-colab':   ['Perfil do Colaborador', 'Histórico e indicadores do colaborador'],
+    'dashboard':            ['Dashboard',             'Visão geral da operação'],
+    'painel-gestor':        ['Painel do Gestor',      'Gerencie sua equipe — adicionar, editar e remover colaboradores'],
+    'painel-colaborador':   ['Painel do Colaborador', 'Selecione um colaborador para ver seu painel individual'],
+    'colaboradores':        ['Equipe',                'Equipe cadastrada na plataforma'],
+    'feedbacks':            ['Feedbacks',             'Histórico de feedbacks registrados'],
+    'risco':                ['Risco Operacional',     'Análise de risco por colaborador'],
+    'planos':               ['Planos de Ação',        'Planos ativos da equipe'],
+    'agenda':               ['Agenda',                'Sessões de acompanhamento agendadas'],
+    'meu-perfil':           ['Meu Perfil',            'Seu perfil DISC e informações de gestor'],
+    'perfil-colab':         ['Perfil do Colaborador', 'Histórico e indicadores do colaborador'],
   };
 
   const [title, subtitle] = titles[view] || ['AeroPulse', ''];
   document.getElementById('top-bar-title').textContent = title;
   document.getElementById('top-bar-subtitle').textContent = subtitle;
 
-  // Show / hide top bar action button
-  document.getElementById('top-bar-action-btn').style.display =
-    ['dashboard','colaboradores'].includes(view) ? 'flex' : 'none';
+  // Dynamic top bar actions per view
+  const actionsEl = document.getElementById('top-bar-actions');
+  if (view === 'painel-gestor') {
+    actionsEl.innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="openAddColaborador()">+ Adicionar Colaborador</button>
+      <button class="btn btn-secondary btn-sm" onclick="openEditGestor()">📷 Editar Perfil</button>
+    `;
+  } else if (['dashboard','colaboradores'].includes(view)) {
+    actionsEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openAddColaborador()">+ Adicionar Colaborador</button>`;
+  } else {
+    actionsEl.innerHTML = '';
+  }
 
   // Activate view and render
   const viewEl = document.getElementById(`view-${view}`);
@@ -217,14 +228,16 @@ function navigateTo(view, el) {
 
 function renderView(view) {
   switch (view) {
-    case 'dashboard':     renderDashboard();     break;
-    case 'colaboradores': renderColaboradores(); break;
-    case 'feedbacks':     renderFeedbacks();     break;
-    case 'risco':         renderRisco();         break;
-    case 'planos':        renderPlanos();        break;
-    case 'agenda':        renderAgenda();        break;
-    case 'meu-perfil':    renderMeuPerfil();     break;
-    case 'perfil-colab':  renderPerfilColab();   break;
+    case 'dashboard':           renderDashboard();          break;
+    case 'painel-gestor':       renderPainelGestor();       break;
+    case 'painel-colaborador':  renderPainelColaborador();  break;
+    case 'colaboradores':       renderColaboradores();      break;
+    case 'feedbacks':           renderFeedbacks();          break;
+    case 'risco':               renderRisco();              break;
+    case 'planos':              renderPlanos();             break;
+    case 'agenda':              renderAgenda();             break;
+    case 'meu-perfil':          renderMeuPerfil();          break;
+    case 'perfil-colab':        renderPerfilColab();        break;
   }
 }
 
@@ -998,6 +1011,310 @@ function concluirAgenda(id) {
   renderView(currentView);
 }
 
+// ─── PAINEL DO GESTOR ──────────────────────────────────────────────────────────
+function renderPainelGestor() {
+  const gestor = db.getGestor();
+  const colabs = db.getColaboradores();
+  const content = document.getElementById('painel-gestor-content');
+
+  const gestorCard = gestor ? `
+    <div class="profile-hero" style="margin-bottom:24px;">
+      <div style="position:relative;flex-shrink:0;">
+        <img src="${gestor.foto}" class="profile-avatar" alt="${gestor.nome}" 
+             onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(gestor.nome)}&background=7c3aed&color=fff&size=128'">
+        <button onclick="openEditGestor()" style="position:absolute;bottom:-4px;right:-4px;width:28px;height:28px;border-radius:50%;background:var(--accent);border:2px solid var(--bg-secondary);color:#fff;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Editar foto">✏️</button>
+      </div>
+      <div class="profile-meta" style="flex:1">
+        <h2>${gestor.nome}</h2>
+        <div style="color:#94a3b8;font-size:0.9rem;">${gestor.cargo} · ${gestor.empresa}</div>
+        <div style="color:#64748b;font-size:0.82rem;margin-top:4px;">${gestor.email}</div>
+        ${gestor.disc ? `<div class="profile-meta-row" style="margin-top:8px;"><span class="badge" style="background:${DISC_PROFILES[gestor.disc.perfil_dominante].cor}22;color:${DISC_PROFILES[gestor.disc.perfil_dominante].cor};border:1px solid ${DISC_PROFILES[gestor.disc.perfil_dominante].cor}55;">${DISC_PROFILES[gestor.disc.perfil_dominante].emoji} ${DISC_PROFILES[gestor.disc.perfil_dominante].nome}</span></div>` : ''}
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="openEditGestor()">✏️ Editar Perfil</button>
+    </div>` : '';
+
+  if (colabs.length === 0) {
+    content.innerHTML = `
+      ${gestorCard}
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">👥 Gerenciamento da Equipe</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddColaborador()">+ Adicionar</button>
+        </div>
+        <div class="empty-state" style="min-height:200px;">
+          <div class="empty-icon">👥</div>
+          <h3>Nenhum colaborador</h3>
+          <p>Adicione o primeiro membro da sua equipe para começar.</p>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const tableRows = colabs.map(c => {
+    const disc = db.getDiscResultByColaborador(c.id);
+    const fbs = db.getFeedbacksByColaborador(c.id);
+    const avg = fbs.length ? (fbs.reduce((s,f) => s + ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3),0)/fbs.length).toFixed(1) : '—';
+    const discLabel = disc ? `<span class="badge disc-${disc.perfil_dominante}">${DISC_PROFILES[disc.perfil_dominante].emoji} ${disc.nome_perfil}</span>` : '<span class="badge badge-blue">Sem DISC</span>';
+
+    return `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img src="${c.foto}" class="avatar-sm" alt="${c.nome}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.nome)}&background=7c3aed&color=fff&size=80'">
+            <div>
+              <div style="font-weight:600;">${c.nome}</div>
+              <div style="font-size:0.78rem;color:#64748b;">${c.email || '—'}</div>
+            </div>
+          </div>
+        </td>
+        <td>${c.cargo}</td>
+        <td>${c.setor}</td>
+        <td>${discLabel}</td>
+        <td><span class="badge badge-purple">Score: ${avg}</span></td>
+        <td><span class="badge badge-green">${c.status}</span></td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openEditColaborador('${c.id}')" title="Editar">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();openRemoveColaborador('${c.id}')" title="Remover">🗑️</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  content.innerHTML = `
+    ${gestorCard}
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">👥 Gerenciamento da Equipe</div>
+          <div class="card-subtitle">${colabs.length} colaborador${colabs.length!==1?'es':''} cadastrado${colabs.length!==1?'s':''}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openAddColaborador()">+ Adicionar Colaborador</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Colaborador</th>
+              <th>Cargo</th>
+              <th>Setor</th>
+              <th>Perfil DISC</th>
+              <th>Score</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <div class="card-header">
+        <div class="card-title">⚙️ Ações em Massa</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-danger btn-sm" onclick="limparEquipe()">🗑️ Remover Toda a Equipe</button>
+        <button class="btn btn-secondary btn-sm" onclick="resetApp()">🔄 Redefinir Tudo (dados + gestor)</button>
+      </div>
+    </div>
+  `;
+}
+
+// ─── PAINEL DO COLABORADOR ──────────────────────────────────────────────────────
+function renderPainelColaborador() {
+  const colabs = db.getColaboradores();
+  const content = document.getElementById('painel-colaborador-content');
+
+  if (colabs.length === 0) {
+    content.innerHTML = `
+      <div class="empty-state" style="min-height:50vh;">
+        <div class="empty-icon">👤</div>
+        <h3>Nenhum colaborador disponível</h3>
+        <p>Adicione colaboradores no Painel do Gestor para visualizar o painel individual de cada um.</p>
+      </div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div class="form-group" style="max-width:300px;">
+        <label class="form-label">Selecione um Colaborador</label>
+        <select class="form-control" id="select-colab-painel" onchange="renderColabPanel()">
+          <option value="">— Selecione —</option>
+          ${colabs.map(c => `<option value="${c.id}">${c.nome} — ${c.cargo}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div id="colab-panel-view"></div>
+  `;
+}
+
+function renderColabPanel() {
+  const id = document.getElementById('select-colab-painel').value;
+  const container = document.getElementById('colab-panel-view');
+  if (!id) { container.innerHTML = '<div class="empty-state" style="min-height:200px;"><p style="color:#94a3b8">Selecione um colaborador acima.</p></div>'; return; }
+
+  const c = db.getColaboradorById(id);
+  if (!c) return;
+  const fbs = db.getFeedbacksByColaborador(id);
+  const disc = db.getDiscResultByColaborador(id);
+  const planos = db.getPlanosAcaoByColaborador(id);
+  const agendas = db.getAgendasByColaborador(id);
+
+  const avg = fbs.length ? (fbs.reduce((s,f) => s + ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3),0)/fbs.length).toFixed(1) : '—';
+  const risk = avg !== '—' ? Math.round(100 - (parseFloat(avg) * 10)) : null;
+  const riskCls = risk === null ? '' : risk >= 60 ? 'risk-high' : risk >= 35 ? 'risk-medium' : 'risk-low';
+  const riskText = risk === null ? 'N/A' : risk >= 60 ? '🔴 Alto' : risk >= 35 ? '🟡 Médio' : '🟢 Baixo';
+
+  container.innerHTML = `
+    <div class="profile-hero" style="margin-bottom:20px;">
+      <img src="${c.foto}" class="profile-avatar" alt="${c.nome}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.nome)}&background=7c3aed&color=fff&size=128'">
+      <div class="profile-meta" style="flex:1">
+        <h2>${c.nome}</h2>
+        <div style="color:#94a3b8;font-size:0.9rem">${c.cargo} · ${c.setor}</div>
+        <div class="profile-meta-row" style="margin-top:8px;">
+          <span class="badge badge-green">${c.status}</span>
+          <span class="badge badge-purple">Score: ${avg}</span>
+          ${risk !== null ? `<span class="badge ${riskBadgeCls(risk)}">${riskText}</span>` : ''}
+          ${disc ? `<span class="badge disc-${disc.perfil_dominante}">${DISC_PROFILES[disc.perfil_dominante].emoji} ${disc.nome_perfil}</span>` : ''}
+        </div>
+        ${risk !== null ? `<div class="risk-bar-wrap" style="margin-top:12px;max-width:320px;"><span style="font-size:0.78rem;color:#94a3b8;width:60px;">Risco</span><div class="risk-bar"><div class="risk-fill ${riskCls}" style="width:${risk}%"></div></div><span style="font-size:0.78rem;color:#94a3b8;">${risk}%</span></div>` : ''}
+      </div>
+    </div>
+
+    <div class="kpi-grid" style="margin-bottom:20px;">
+      <div class="kpi-card accent-purple"><div class="kpi-label">Feedbacks</div><div class="kpi-value">${fbs.length}</div><div class="kpi-sub">Registrados</div></div>
+      <div class="kpi-card accent-green"><div class="kpi-label">Score Médio</div><div class="kpi-value">${avg}</div><div class="kpi-sub">Performance geral</div></div>
+      <div class="kpi-card accent-blue"><div class="kpi-label">Planos de Ação</div><div class="kpi-value">${planos.length}</div><div class="kpi-sub">${planos.filter(p=>p.status==='Concluído').length} concluído(s)</div></div>
+      <div class="kpi-card accent-red"><div class="kpi-label">Agendamentos</div><div class="kpi-value">${agendas.length}</div><div class="kpi-sub">${agendas.filter(a=>a.status==='Realizado').length} realizado(s)</div></div>
+    </div>
+
+    <div class="grid-2" style="gap:20px;margin-bottom:20px;">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">🧠 Perfil DISC</div>
+        ${disc ? `
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+            <div style="font-size:2.5rem;">${DISC_PROFILES[disc.perfil_dominante].emoji}</div>
+            <div>
+              <div style="font-weight:700;font-size:1.1rem;">${disc.nome_perfil}</div>
+              <div style="font-size:0.82rem;color:#94a3b8;">${disc.descricao}</div>
+            </div>
+          </div>
+          <div class="disc-bars-list">
+            ${Object.entries(disc.percentuais).map(([k,v]) => `<div class="disc-bar-row"><label><span>${DISC_PROFILES[k].emoji} ${DISC_PROFILES[k].nome}</span><span>${v}%</span></label><div class="bar"><div class="bar-fill bar-${k}" style="width:${v}%"></div></div></div>`).join('')}
+          </div>
+        ` : `<div class="empty-state" style="min-height:100px;"><p>Perfil DISC não avaliado.</p></div>`}
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">💬 Últimos Feedbacks</div>
+        ${fbs.length ? `<div class="timeline">${fbs.slice(0,5).map(f => {
+          const favg = ((parseFloat(f.nota_performance)+parseFloat(f.nota_comportamento)+parseFloat(f.nota_compliance))/3).toFixed(1);
+          return `<div class="timeline-item"><div class="timeline-meta">${f.data}</div><div class="timeline-scores"><span class="score-chip">P: ${f.nota_performance}</span><span class="score-chip">C: ${f.nota_comportamento}</span><span class="score-chip">Co: ${f.nota_compliance}</span><span class="score-chip">Média: ${favg}</span></div></div>`;
+        }).join('')}</div>` : '<div class="empty-state" style="min-height:100px;"><p>Sem feedbacks registrados.</p></div>'}
+      </div>
+    </div>
+  `;
+}
+
+// ─── EDIT / REMOVE COLLABORATOR ───────────────────────────────────────────────
+function openEditColaborador(id) {
+  const c = db.getColaboradorById(id);
+  if (!c) return;
+  document.getElementById('edit-colab-id').value = c.id;
+  document.getElementById('edit-colab-nome').value = c.nome;
+  document.getElementById('edit-colab-cargo').value = c.cargo;
+  document.getElementById('edit-colab-setor').value = c.setor;
+  document.getElementById('edit-colab-email').value = c.email || '';
+  document.getElementById('edit-colab-telefone').value = c.telefone || '';
+  document.getElementById('edit-colab-foto').value = c.foto || '';
+  openModal('modal-edit-colab');
+}
+
+function submitEditColaborador() {
+  const id = document.getElementById('edit-colab-id').value;
+  const nome = document.getElementById('edit-colab-nome').value.trim();
+  const cargo = document.getElementById('edit-colab-cargo').value.trim();
+  const setor = document.getElementById('edit-colab-setor').value.trim();
+  const email = document.getElementById('edit-colab-email').value.trim();
+  const telefone = document.getElementById('edit-colab-telefone').value.trim();
+  let foto = document.getElementById('edit-colab-foto').value.trim();
+
+  if (!nome || !cargo || !setor) {
+    showToast('Nome, cargo e setor são obrigatórios.', 'error');
+    return;
+  }
+  if (!foto) foto = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=7c3aed&color=fff&size=128`;
+
+  db.updateColaborador(id, { nome, cargo, setor, email, telefone, foto });
+  closeModal('modal-edit-colab');
+  showToast(`${nome} atualizado(a)!`, 'success');
+  renderView(currentView);
+}
+
+function openRemoveColaborador(id) {
+  const c = db.getColaboradorById(id);
+  if (!c) return;
+  document.getElementById('confirm-remove-id').value = id;
+  document.getElementById('confirm-remove-msg').textContent = `Tem certeza que deseja remover "${c.nome}"? Todos os feedbacks, avaliações DISC e planos de ação desta pessoa serão perdidos.`;
+  openModal('modal-confirm-remove');
+}
+
+function confirmRemoveColaborador() {
+  const id = document.getElementById('confirm-remove-id').value;
+  const c = db.getColaboradorById(id);
+  db.removeColaborador(id);
+  closeModal('modal-confirm-remove');
+  showToast(`${c?.nome || 'Colaborador'} removido(a) com sucesso.`, 'success');
+  renderView(currentView);
+}
+
+function limparEquipe() {
+  const colabs = db.getColaboradores();
+  if (colabs.length === 0) { showToast('Nenhum colaborador para remover.', 'info'); return; }
+  if (!confirm(`Remover TODOS os ${colabs.length} colaborador(es) e seus dados? Esta ação não pode ser desfeita.`)) return;
+  colabs.forEach(c => db.removeColaborador(c.id));
+  showToast('Equipe removida por completo!', 'success');
+  renderView(currentView);
+}
+
+// ─── EDIT GESTOR ──────────────────────────────────────────────────────────────
+function openEditGestor() {
+  const g = db.getGestor();
+  if (!g) return;
+  document.getElementById('edit-gestor-nome').value = g.nome || '';
+  document.getElementById('edit-gestor-cargo').value = g.cargo || '';
+  document.getElementById('edit-gestor-empresa').value = g.empresa || '';
+  document.getElementById('edit-gestor-foto').value = g.foto || '';
+  const preview = document.getElementById('edit-gestor-foto-preview');
+  if (g.foto) { preview.src = g.foto; preview.style.display = 'block'; }
+  else { preview.style.display = 'none'; }
+  // Live preview
+  document.getElementById('edit-gestor-foto').oninput = (e) => {
+    const url = e.target.value.trim();
+    if (url) { preview.src = url; preview.style.display = 'block'; }
+    else { preview.style.display = 'none'; }
+  };
+  openModal('modal-edit-gestor');
+}
+
+function submitEditGestor() {
+  const g = db.getGestor();
+  const nome = document.getElementById('edit-gestor-nome').value.trim();
+  const cargo = document.getElementById('edit-gestor-cargo').value.trim();
+  const empresa = document.getElementById('edit-gestor-empresa').value.trim();
+  let foto = document.getElementById('edit-gestor-foto').value.trim();
+  if (!nome) { showToast('O nome é obrigatório.', 'error'); return; }
+  if (!foto) foto = `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=7c3aed&color=fff&size=128`;
+  db.saveGestor({ ...g, nome, cargo, empresa, foto });
+  closeModal('modal-edit-gestor');
+  renderSidebarProfile();
+  showToast('Perfil do gestor atualizado!', 'success');
+  renderView(currentView);
+}
+
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 function showToast(msg, type = 'info') {
   const container = document.getElementById('toast-container');
@@ -1018,8 +1335,8 @@ function resetApp() {
 }
 
 // Close modals on backdrop click
-document.querySelectorAll('.modal-backdrop').forEach(b => {
-  b.addEventListener('click', e => {
-    if (e.target === b) b.classList.add('hidden');
-  });
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-backdrop')) {
+    e.target.classList.add('hidden');
+  }
 });
